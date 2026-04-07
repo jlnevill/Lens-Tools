@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCP Lens Correction Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #f4f5f2;
+    --surface: #ffffff;
+    --border: #d8dbd4;
+    --border-bright: #c2c8bc;
+    --accent: #2d7a1f;
+    --accent-dim: #3d9a2a;
+    --accent-glow: rgba(45,122,31,0.08);
+    --text: #2a2e28;
+    --text-dim: #7a8275;
+    --text-bright: #1a1d18;
+    --error: #c0392b;
+    --warn: #a0700a;
+    --ptlens: #0068a8;
+    --ptlens-dim: #005688;
+    --ptlens-glow: rgba(0,104,168,0.07);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 40px 24px;
+    font-size: 14px;
+  }
+
+
+
+  .shell {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  .logo-mark {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    margin-left: auto;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    background: var(--surface);
+  }
+
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    background: var(--accent-glow);
+  }
+
+  .drop-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+    line-height: 1;
+  }
+
+  .drop-label {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .drop-label strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .drop-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  input[type="file"] { display: none; }
+
+  /* Filter controls */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .control-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .control-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border-bright);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .tag-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+  .tag-btn.active {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .custom-input {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 5px 10px;
+    width: 90px;
+    outline: none;
+    transition: border-color 0.1s;
+  }
+  .custom-input:focus { border-color: var(--accent-dim); }
+  .custom-input::placeholder { color: var(--text-dim); }
+
+  .note {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .note span { color: var(--accent); }
+
+  /* Status bar */
+  .status-bar {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    display: none;
+  }
+
+  .status-bar.info { background: rgba(45,122,31,0.07); border: 1px solid var(--accent-dim); color: var(--accent); display: block; }
+  .status-bar.error { background: rgba(192,57,43,0.07); border: 1px solid #c0392b; color: var(--error); display: block; }
+  .status-bar.warn  { background: rgba(160,112,10,0.07); border: 1px solid #a0700a; color: var(--warn); display: block; }
+
+  /* Results */
+  .results-section {
+    margin-top: 24px;
+    display: none;
+  }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .results-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .results-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent-dim);
+  }
+
+  /* Table */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  thead tr {
+    border-bottom: 1px solid var(--border-bright);
+  }
+
+  th {
+    text-align: right;
+    padding: 10px 14px;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  th:first-child,
+  th.col-group-label { text-align: left; }
+
+  td {
+    padding: 9px 14px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  /* Left-align index and label columns */
+  td.dim { color: var(--text-dim); text-align: left; }
+  td:first-child { text-align: left; }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--accent-glow); }
+
+  td.num { color: var(--accent); font-weight: 500; }
+  td.pt  { color: var(--ptlens); font-weight: 500; }
+
+  /* Sensor controls strip */
+  .sensor-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .sensor-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .sensor-input {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 4px 8px;
+    width: 68px;
+    outline: none;
+    text-align: right;
+    -moz-appearance: textfield;
+  }
+  .sensor-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .sensor-input:focus { border-color: var(--ptlens-dim); }
+  .sensor-derived {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+  .sensor-derived span { color: var(--ptlens); }
+
+  /* Section divider label */
+  .col-group-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 3px 14px;
+    color: var(--text-dim);
+  }
+  .col-group-label.pt-hd { color: var(--ptlens-dim); background: var(--ptlens-glow); }
+
+  /* Action buttons */
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 9px 20px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.12s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+  .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border-bright);
+    color: var(--text-dim);
+  }
+  .btn-ghost:hover { border-color: var(--accent-dim); color: var(--text); }
+
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Raw output */
+  .raw-output {
+    margin-top: 16px;
+    display: none;
+  }
+
+  .raw-header {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  pre {
+    background: #f8f9f6;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    overflow-x: auto;
+    max-height: 300px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  /* Filename badge */
+  .file-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 10px;
+    text-align: center;
+    word-break: break-all;
+  }
+
+  .file-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .summary-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    color: var(--text-dim);
+  }
+
+  .chip strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <h1>LCP Lens Correction Converter</h1>
+    <span style="font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;color:#ffffff;background:var(--accent);border-radius:3px;padding:2px 7px;flex-shrink:0;">v1.3</span>
+    <div class="subtitle">Distortion &amp; Vignette Conversion - LCP → ACM + PTLens</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-left:auto;text-align:right;flex-shrink:0;">prompted by John L. Nevill &nbsp;·&nbsp; coded by Claude</div>
+  </header>
+
+  <!-- Drop Zone -->
+  <label class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".lcp,.xml">
+    <div class="drop-icon">◫</div>
+    <div class="drop-label">Drop <strong>.lcp file</strong> here or click to browse</div>
+    <div class="drop-sub">Adobe Lens Correction Profile (XML/RDF format)</div>
+  </label>
+
+  <div id="fileBadge" style="display:none">
+    <div class="file-badge"><div class="file-dot"></div><span id="fileName">—</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Sensor Selector -->
+  <div class="sensor-strip">
+    <div class="sensor-label">Sensor</div>
+    <div class="control-row" style="gap:8px;">
+      <button class="tag-btn active" id="sensorBtn-x2d"    onclick="selectSensor('x2d')">Hasselblad X / GFX</button>
+      <button class="tag-btn"        id="sensorBtn-ff"     onclick="selectSensor('ff')">Full Frame</button>
+      <button class="tag-btn"        id="sensorBtn-apsc"   onclick="selectSensor('apsc')">Fujifilm APS-C</button>
+      <button class="tag-btn"        id="sensorBtn-capsc"  onclick="selectSensor('capsc')">Canon APS-C</button>
+      <button class="tag-btn"        id="sensorBtn-mft"    onclick="selectSensor('mft')">Micro Four Thirds</button>
+      <button class="tag-btn"        id="sensorBtn-sony1"  onclick="selectSensor('sony1')">Sony 1"</button>
+    </div>
+    <div class="sensor-derived" style="margin-left:12px;">
+      <span id="dispSensorName">Hasselblad X / GFX</span>
+      &nbsp;·&nbsp; <span id="dispSensorDims">43.8 × 32.9 mm</span>
+      &nbsp;·&nbsp; diag <span id="dispDiag">54.78</span> mm
+      &nbsp;·&nbsp; R_NORM <span id="dispRnorm">16.45</span> mm
+      &nbsp;·&nbsp; r_max <span id="dispRmax">1.6652</span>
+    </div>
+    <div class="sensor-label" style="margin-left:16px;">Mount</div>
+    <input id="dispMount" class="sensor-input" type="text" value="Hasselblad X" style="width:160px;font-size:12px;" title="Edit mount name for lensfun XML export" />
+  </div>
+  <div id="sensorWarn" style="display:none;margin-top:8px;padding:8px 14px;border-radius:4px;font-family:var(--mono);font-size:11px;background:rgba(160,112,10,0.09);border:1px solid #a0700a;color:#7a5500;">
+    &#9888; Sensor mismatch: LCP <span id="warnLcp"></span> &mdash; selected sensor diagonal <span id="warnSel"></span> mm. Vignette PA conversion uses half-diagonal (R_MAX) from the selected sensor &mdash; ensure it matches the camera the LCP was calibrated for.
+  </div>
+
+  <!-- Filter Controls -->
+  <div style="margin-top:16px;padding:8px 14px;border-radius:4px;font-family:var(--mono);font-size:11px;background:rgba(45,122,31,0.07);border:1px solid var(--accent-dim);color:var(--accent);">
+    &#9432; Darktable implements one aperture and focus distance pair for Lensfun distortion correction. Use default values!.
+  </div>
+  <div class="controls">
+    <div class="control-group">
+      <div class="control-label">Aperture (f-number)</div>
+      <div class="control-row">
+        <select id="apSelect" class="custom-input" style="width:auto;padding:5px 10px;cursor:pointer;background:var(--bg);color:var(--text);">
+          <option value="all">All apertures</option>
+        </select>
+      </div>
+      <div class="note">Load a file to populate · selected: <span id="apNote">all</span></div>
+    </div>
+    <div class="control-group">
+      <div class="control-label">Focus Distance</div>
+      <div class="control-row">
+        <select id="fdSelect" class="custom-input" style="width:auto;padding:5px 10px;cursor:pointer;background:var(--bg);color:var(--text);">
+          <option value="all">All distances</option>
+        </select>
+      </div>
+      <div class="note">Load a file to populate · selected: <span id="fdNote">—</span></div>
+    </div>
+  </div>
+
+  <div id="statusBar" class="status-bar"></div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <hr class="divider">
+
+    <div class="summary-chips" id="summaryChips"></div>
+
+    <div style="margin-top:14px">
+      <div class="results-header" style="margin-bottom:10px;cursor:pointer;user-select:none;" onclick="toggleDistTable()">
+        <div class="results-title">Distortion — filtered entries</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="results-meta" id="resultsMeta"></div>
+          <div id="distToggleArrow" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">&#9660; hide</div>
+        </div>
+      </div>
+      <div id="distTableWrap" class="table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th></th>
+              <th colspan="3" class="col-group-label">Entry</th>
+              <th colspan="3" class="col-group-label">ACM radial (k1 k2 k3)</th>
+              <th colspan="3" class="col-group-label pt-hd">PTLens (a b c)</th>
+            </tr>
+            <tr>
+              <th>#</th>
+              <th>FocalLength</th>
+              <th>FocusDistance</th>
+              <th>Aperture</th>
+              <th>k1</th>
+              <th>k2</th>
+              <th>k3</th>
+              <th style="color:var(--ptlens-dim)">a</th>
+              <th style="color:var(--ptlens-dim)">b</th>
+              <th style="color:var(--ptlens-dim)">c</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="results-header" style="margin-bottom:10px;cursor:pointer;user-select:none;" onclick="toggleVigTable()">
+        <div class="results-title">Vignetting — all apertures &amp; distances</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="results-meta" id="vigMeta"></div>
+          <div id="vigToggleArrow" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">&#9660; hide</div>
+        </div>
+      </div>
+      <div id="vigTableWrap" class="table-wrap">
+        <table id="vigTable">
+          <thead>
+            <tr>
+              <th></th>
+              <th colspan="3" class="col-group-label">Entry</th>
+              <th colspan="3" class="col-group-label">ACM (α1 α2 α3)</th>
+              <th colspan="3" class="col-group-label pt-hd">PA k1 k2 k3 — lensfun</th>
+            </tr>
+            <tr>
+              <th>#</th>
+              <th>FocalLength</th>
+              <th>Aperture</th>
+              <th>Distance</th>
+              <th>α1</th>
+              <th>α2</th>
+              <th>α3</th>
+              <th style="color:var(--ptlens-dim)">k1</th>
+              <th style="color:var(--ptlens-dim)">k2</th>
+              <th style="color:var(--ptlens-dim)">k3</th>
+            </tr>
+          </thead>
+          <tbody id="vigBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="exportTxt">↓ Export .txt</button>
+      <button class="btn btn-ghost" id="toggleRaw">Show .txt</button>
+      <button class="btn btn-primary" id="exportXml" style="background:var(--ptlens);border-color:var(--ptlens);">↓ Export lensfun .xml</button>
+      <button class="btn btn-ghost" id="toggleXml">Show .xml</button>
+      <button class="btn btn-ghost" id="toggleGraph" style="display:none;">Show distortion graph</button>
+      <button class="btn btn-ghost" id="toggleVigGraph">Show vignette graph</button>
+      <button class="btn btn-ghost" id="clearBtn">Clear</button>
+    </div>
+
+    <div id="vigGraphOutput" style="display:none;margin-top:16px;">
+      <div class="raw-header">Vignette Correction — Illumination increase (EV) — sensor diagonal</div>
+      <canvas id="vigCanvas" style="width:100%;border:1px solid var(--border);border-radius:4px;background:var(--surface);display:block;cursor:crosshair;"></canvas>
+      <div id="vigGraphReadout" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:5px;height:16px;"></div>
+    </div>
+
+    <div id="graphOutput" style="display:none;margin-top:16px;">
+      <div class="raw-header">Distortion Correction — sensor diagonal (ACM vs PTLens)</div>
+      <canvas id="distCanvas" style="width:100%;border:1px solid var(--border);border-radius:4px;background:var(--surface);display:block;cursor:crosshair;"></canvas>
+      <div id="graphReadout" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:5px;height:16px;"></div>
+    </div>
+
+    <div class="raw-output" id="rawOutput">
+      <div class="raw-header">Export .txt preview</div>
+      <pre id="rawPre"></pre>
+    </div>
+
+    <div class="raw-output" id="xmlOutput">
+      <div class="raw-header">Export .xml preview</div>
+      <pre id="xmlPre"></pre>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Sensor presets ────────────────────────────────────────────────────────────
+const SENSORS = {
+  x2d:   { name: 'Hasselblad X / GFX',  w: 43.8, h: 32.9, mount: 'Hasselblad X', cropMatchVal: 0.79, cropMatchTol: 0.05 },
+  ff:    { name: 'Full Frame',          w: 36.0, h: 24.0, mount: 'Nikon F',       cropMatchVal: 1.0,  cropMatchTol: 0.05 },
+  apsc:  { name: 'Fujifilm APS-C',      w: 23.8, h: 15.6, mount: 'Fujifilm X',    cropMatchVal: 1.53, cropMatchTol: 0.1  },
+  capsc: { name: 'Canon APS-C',         w: 22.2, h: 14.8, mount: 'Canon EF-S',    cropMatchVal: 1.6,  cropMatchTol: 0.1  },
+  mft:   { name: 'Micro Four Thirds',   w: 17.3, h: 13.0, mount: 'Micro Four Thirds', cropMatchVal: 2.0,  cropMatchTol: 0.1  },
+  sony1: { name: 'Sony 1"',             w: 13.2, h:  8.8, mount: 'Sony E',        cropMatchVal: 2.7,  cropMatchTol: 0.15 },
+};
+
+let activeSensorKey = 'x2d';
+
+// ── Sensor state (reactive) ───────────────────────────────────────────────────
+let SENSOR_W, SENSOR_H, SENSOR_DIAG, R_NORM, R_MAX, R_FIT_MAX;
+
+function selectSensor(key) {
+  activeSensorKey = key;
+  const s = SENSORS[key];
+  SENSOR_W    = s.w;
+  SENSOR_H    = s.h;
+  SENSOR_DIAG = Math.sqrt(SENSOR_W**2 + SENSOR_H**2);
+  R_NORM      = SENSOR_H / 2;
+  R_MAX       = SENSOR_DIAG / 2;
+  R_FIT_MAX   = R_MAX / R_NORM;
+
+  // Update button states
+  Object.keys(SENSORS).forEach(k => {
+    document.getElementById('sensorBtn-' + k).classList.toggle('active', k === key);
+  });
+
+  onSensorChange();
+}
+
+function onSensorChange() {
+  const s = SENSORS[activeSensorKey];
+  document.getElementById('dispSensorName').textContent = s.name;
+  document.getElementById('dispSensorDims').textContent = SENSOR_W + ' × ' + SENSOR_H + ' mm';
+  document.getElementById('dispDiag').textContent  = SENSOR_DIAG.toFixed(2);
+  document.getElementById('dispRnorm').textContent = R_NORM.toFixed(2);
+  document.getElementById('dispRmax').textContent  = R_FIT_MAX.toFixed(4);
+  document.getElementById('dispMount').value = s.mount;
+  if (filteredEntries.length) renderResults();
+  checkSensorMatch();
+}
+
+function checkSensorMatch() {
+  const warn = document.getElementById('sensorWarn');
+  if (!lensCropfactor) { warn.style.display = 'none'; return; }
+  const s = SENSORS[activeSensorKey];
+  const cf = parseFloat(lensCropfactor);
+  if (Math.abs(cf - s.cropMatchVal) > s.cropMatchTol) {
+    document.getElementById('warnLcp').textContent = 'SensorFormatFactor ' + cf + ' (not ' + s.name + ')';
+    document.getElementById('warnSel').textContent = SENSOR_DIAG.toFixed(2);
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+// ── ACM → PTLens analytical conversion ───────────────────────────────────────
+// Exact Cramér's-rule least-squares: minimise ∫[0,rm] (ACM(r) - PTLens(r))² dr
+// ACM distortion residual in lensfun coords:  Δ(r) = K1·r³ + K2·r⁵ + K3·r⁷
+// PTLens distortion residual:                 Δ(r) = c·r² + b·r³ + a·r⁴
+// where K1=k1·s², K2=k2·s⁴, K3=k3·s⁶,  s = R_NORM / focal_mm
+// rm is clamped to ACM valid range: min(R_FIT_MAX, focal_mm/R_NORM)
+// This matches the reference tool's getEffectiveFitMax() behaviour.
+function acmToPTLens(k1, k2, k3, focal_mm) {
+  const s  = R_NORM / focal_mm;
+  const K1 = k1 * s * s;
+  const K2 = k2 * s * s * s * s;
+  const K3 = k3 * s * s * s * s * s * s;
+  // Clamp fit domain to ACM valid range (u ≤ 1 in focal-length space)
+  const rm = Math.min(R_FIT_MAX, focal_mm / R_NORM);
+
+  // Atb vector: ∫ Δ_acm(r) · basis_i dr,  bases = [r², r³, r⁴]
+  const Atb1 = K1*rm**6/6  + K2*rm**8/8   + K3*rm**10/10;
+  const Atb2 = K1*rm**7/7  + K2*rm**9/9   + K3*rm**11/11;
+  const Atb3 = K1*rm**8/8  + K2*rm**10/10 + K3*rm**12/12;
+
+  // AtA matrix: ∫ basis_i · basis_j dr  (symmetric 3×3)
+  const a00=rm**5/5, a01=rm**6/6, a02=rm**7/7,
+                     a11=rm**7/7, a12=rm**8/8,
+                                   a22=rm**9/9;
+
+  // Cramer's rule
+  const det = a00*(a11*a22 - a12*a12)
+             - a01*(a01*a22 - a12*a02)
+             + a02*(a01*a12 - a11*a02);
+
+  if (Math.abs(det) < 1e-30) return { a: NaN, b: NaN, c: NaN };
+
+  const c = ( Atb1*(a11*a22-a12*a12) - a01*(Atb2*a22-a12*Atb3) + a02*(Atb2*a12-a11*Atb3) ) / det;
+  const b = ( a00*(Atb2*a22-a12*Atb3) - Atb1*(a01*a22-a12*a02) + a02*(a01*Atb3-Atb2*a02) ) / det;
+  const a = ( a00*(a11*Atb3-Atb2*a12) - a01*(a01*Atb3-Atb2*a02) + Atb1*(a01*a12-a11*a02) ) / det;
+
+  return { a, b, c };
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allEntries = [];
+let filteredEntries = [];
+let lcpFilename = '';
+let lensName = '';
+let lensMaker = '';
+let lensModel = '';
+let lensCropfactor = '';
+let apMode = 'all';
+let fdMode = 'max';
+let customApVal = null;
+
+// ── DOM ──────────────────────────────────────────────────────────────────────
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const fileBadge   = document.getElementById('fileBadge');
+const fileNameEl  = document.getElementById('fileName');
+const statusBar   = document.getElementById('statusBar');
+const resultsSection = document.getElementById('resultsSection');
+const tableBody   = document.getElementById('tableBody');
+const resultsMeta = document.getElementById('resultsMeta');
+const summaryChips= document.getElementById('summaryChips');
+const apNoteEl    = document.getElementById('apNote');
+const rawOutput   = document.getElementById('rawOutput');
+const rawPre      = document.getElementById('rawPre');
+const xmlOutput   = document.getElementById('xmlOutput');
+const xmlPre      = document.getElementById('xmlPre');
+const exportBtn   = document.getElementById('exportTxt');
+const toggleRawBtn= document.getElementById('toggleRaw');
+const clearBtn    = document.getElementById('clearBtn');
+
+// Initialise sensor display
+selectSensor('x2d');
+
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+// ── Aperture select ───────────────────────────────────────────────────────────
+const apSelect = document.getElementById('apSelect');
+
+function populateApSelect(entries) {
+  const uniqueAps = [...new Set(entries.map(e => e.ap))].sort((a, b) => a - b);
+  apSelect.innerHTML = '<option value="all">All apertures</option>';
+  uniqueAps.forEach(ap => {
+    const opt = document.createElement('option');
+    opt.value = ap;
+    opt.textContent = 'f/' + ap;
+    apSelect.appendChild(opt);
+  });
+  // Default to f/8 if present, else first option
+  const has8 = uniqueAps.some(ap => Math.abs(ap - 8) < 0.001);
+  apSelect.value = has8 ? '8' : 'all';
+  apMode = apSelect.value;
+  updateApNote();
+}
+
+apSelect.addEventListener('change', () => {
+  apMode = apSelect.value;
+  updateApNote();
+  if (allEntries.length) runFilter();
+});
+
+// ── Focus distance buttons ────────────────────────────────────────────────────
+// ── Focus distance select ────────────────────────────────────────────────────────────────────────────
+const fdSelect = document.getElementById('fdSelect');
+const fdNoteEl = document.getElementById('fdNote');
+
+function fdLabel(val) {
+  return parseFloat(val) >= 9999 ? '∞ (10000 m)' : val + ' m';
+}
+
+function populateFdSelect(entries) {
+  const uniqueFds = [...new Set(entries.map(e => e.focus))].sort((a, b) => a - b);
+  fdSelect.innerHTML = '<option value="all">All distances</option>';
+  uniqueFds.forEach(fd => {
+    const opt = document.createElement('option');
+    opt.value = fd;
+    opt.textContent = fd >= 9999 ? '∞ (10000 m)' : fd + ' m';
+    fdSelect.appendChild(opt);
+  });
+  // Default to max (infinity) focus distance
+  const maxFd = Math.max(...uniqueFds);
+  fdSelect.value = maxFd;
+  fdMode = String(maxFd);
+  fdNoteEl.textContent = fdLabel(fdMode);
+}
+
+fdSelect.addEventListener('change', () => {
+  fdMode = fdSelect.value;
+  fdNoteEl.textContent = fdMode === 'all' ? 'all' : fdLabel(fdMode);
+  if (allEntries.length) runFilter();
+});
+
+// ── Parse LCP ────────────────────────────────────────────────────────────────
+function parseLCP(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'application/xml');
+  const err = doc.querySelector('parsererror');
+  if (err) throw new Error('XML parse error: ' + err.textContent.slice(0, 120));
+
+  const entries = [];
+  // Extract lens metadata — iterate nodes (colon in attr names breaks querySelector)
+  let lensNameRaw = '', makerRaw = '', modelRaw = '', cropRaw = '';
+  const NS_SC_META = 'http://ns.adobe.com/photoshop/1.0/camera-profile';
+  const scm = (el, name) => el.getAttributeNS(NS_SC_META, name);
+  const allDescs = doc.getElementsByTagNameNS('*', 'Description');
+  for (const d of allDescs) {
+    const pretty = scm(d, 'LensPrettyName');
+    if (pretty) {
+      lensNameRaw = pretty;
+      makerRaw    = scm(d, 'Make') || scm(d, 'CameraPrettyName') || '';
+      modelRaw    = scm(d, 'Lens') || '';
+      cropRaw     = scm(d, 'SensorFormatFactor') || '';
+      break;
+    }
+  }
+  if (!lensNameRaw) {
+    for (const d of allDescs) {
+      const lens = scm(d, 'Lens');
+      if (lens) { lensNameRaw = lens; break; }
+    }
+  }
+
+  // Namespace URIs in LCP files
+  const NS_RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+  const NS_SC  = 'http://ns.adobe.com/photoshop/1.0/camera-profile';
+
+  // Helper: read stCamera-namespaced attribute reliably via getAttributeNS
+  const sc = (el, name) => el.getAttributeNS(NS_SC, name);
+
+  // Each calibration entry lives in: rdf:Seq > rdf:li > rdf:Description
+  // Use getElementsByTagNameNS to find all rdf:li elements
+  const rdfLis = doc.getElementsByTagNameNS(NS_RDF, 'li');
+  let _dbg = 0;
+  for (const li of rdfLis) {
+    // Outer rdf:Description is the first element child of rdf:li
+    let desc = null;
+    for (const child of li.childNodes) {
+      if (child.nodeType === 1 && child.localName === 'Description') { desc = child; break; }
+    }
+    if (!desc) continue;
+
+    const ap = sc(desc, 'ApertureValue');
+    const fd = sc(desc, 'FocusDistance');
+    const fl = sc(desc, 'FocalLength');
+    if (!ap || !fd || !fl) continue;
+
+    // Find stCamera:PerspectiveModel as direct child of outer desc
+    let pmEl = null;
+    for (const child of desc.childNodes) {
+      if (child.nodeType === 1 && child.localName === 'PerspectiveModel') { pmEl = child; break; }
+    }
+
+    // Find inner rdf:Description as direct child of PerspectiveModel
+    let perspDesc = null;
+    if (pmEl) {
+      for (const child of pmEl.childNodes) {
+        if (child.nodeType === 1 && child.localName === 'Description') { perspDesc = child; break; }
+      }
+    }
+
+    let k1 = NaN, k2 = NaN, k3 = NaN;
+    let v1 = NaN, v2 = NaN, v3 = NaN;
+    if (perspDesc) {
+      k1 = parseFloat(sc(perspDesc, 'RadialDistortParam1') || 'NaN');
+      k2 = parseFloat(sc(perspDesc, 'RadialDistortParam2') || 'NaN');
+      k3 = parseFloat(sc(perspDesc, 'RadialDistortParam3') || 'NaN');
+      // Find VignetteModelParam1 — search el and all descendants
+      const findVigParams = (el) => {
+        const v = sc(el, 'VignetteModelParam1');
+        if (v !== null) return [
+          parseFloat(v || 'NaN'),
+          parseFloat(sc(el, 'VignetteModelParam2') || 'NaN'),
+          parseFloat(sc(el, 'VignetteModelParam3') || 'NaN'),
+        ];
+        for (const child of el.children) {
+          const r = findVigParams(child); if (r) return r;
+        }
+        return null;
+      };
+      const vigParams = findVigParams(perspDesc);
+      if (vigParams) { [v1, v2, v3] = vigParams; }
+    }
+
+    if (_dbg++ < 5) console.log(`[LCP entry ${_dbg}] AP=${ap} FD=${fd} FL=${fl} k1=${k1} v1=${v1} v2=${v2} v3=${v3}`);
+
+    entries.push({
+      focal: parseFloat(fl),
+      focus: parseFloat(fd),
+      ap:    parseFloat(ap),
+      k1, k2, k3,
+      v1, v2, v3,
+    });
+  }
+  return { entries, lensName: lensNameRaw, maker: makerRaw, model: modelRaw, cropfactor: cropRaw };
+}
+
+// ── Handle file ───────────────────────────────────────────────────────────────
+function handleFile(file) {
+  lcpFilename = file.name;
+  fileNameEl.textContent = file.name;
+  fileBadge.style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parseLCP(e.target.result);
+      allEntries = parsed.entries;
+      lensName    = parsed.lensName;
+      lensMaker   = parsed.maker;
+      lensModel   = parsed.model;
+      lensCropfactor = parsed.cropfactor;
+      if (allEntries.length === 0) { showStatus('warn', 'File parsed but no calibration entries found.'); return; }
+      populateApSelect(allEntries);
+      populateFdSelect(allEntries);
+      const uniqueAp = [...new Set(allEntries.map(e => e.ap))].sort((a,b)=>a-b).map(v=>'f/'+parseFloat(v.toFixed(1))).join(', ');
+      showStatus('info', `Loaded ${allEntries.length} entries from "${file.name}". Apertures: ${uniqueAp}`);
+      checkSensorMatch();
+      runFilter();
+    } catch (err) { showStatus('error', 'Parse error: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+function runFilter() {
+  let pool = [...allEntries];
+  if (apMode !== 'all') {
+    const target = parseFloat(apMode);
+    pool = pool.filter(e => Math.abs(e.ap - target) < 0.001);
+  }
+  if (fdMode !== 'all') {
+    const targetFd = parseFloat(fdMode);
+    pool = pool.filter(e => Math.abs(e.focus - targetFd) < 0.001);
+  }
+  filteredEntries = pool.sort((a, b) => a.focal - b.focal || a.ap - b.ap);
+  renderResults();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(v, dp=8) { return isNaN(v) ? '—' : v.toFixed(dp); }
+function fmt6(v)      { return fmt(v, 6); }
+
+function updateApNote() {
+  apNoteEl.textContent = apMode === 'all' ? 'all' : 'f/' + parseFloat(apMode);
+}
+function showStatus(type, msg) {
+  statusBar.className = 'status-bar ' + type;
+  statusBar.textContent = msg;
+  statusBar.style.display = 'block';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderResults() {
+  resultsSection.style.display = 'block';
+  rawOutput.style.display = 'none';
+  toggleRawBtn.textContent = 'Show .txt';
+  xmlOutput.style.display = 'none';
+  document.getElementById('toggleXml').textContent = 'Show .xml';
+  resultsMeta.textContent = `${filteredEntries.length} of ${allEntries.length} entries`;
+
+  if (filteredEntries.length > 0) {
+    const fls = [...new Set(filteredEntries.map(e => e.focal))].sort((a,b)=>a-b);
+    const aps = [...new Set(filteredEntries.map(e => e.ap))].sort((a,b)=>a-b);
+    const fds = [...new Set(filteredEntries.map(e => e.focus))].sort((a,b)=>a-b);
+    summaryChips.innerHTML = `
+      <div class="chip">focal: <strong>${fls.map(v=>v+'mm').join(', ')}</strong></div>
+      <div class="chip">aperture: <strong>${aps.map(v=>'f/'+v).join(', ')}</strong></div>
+      <div class="chip">focus: <strong>${fds.map(v=>v>=9999?'∞':v+'m').join(', ')}</strong></div>
+      <div class="chip">R_NORM: <strong>${R_NORM.toFixed(2)} mm</strong></div>
+      <div class="chip">r_max: <strong>${R_FIT_MAX.toFixed(4)}</strong></div>
+    `;
+  } else { summaryChips.innerHTML = ''; }
+
+  tableBody.innerHTML = '';
+  if (filteredEntries.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="10" class="dim" style="text-align:center;padding:24px">No entries match the current filter</td></tr>`;
+    exportBtn.disabled = true;
+    rawPre.textContent = '';
+    xmlPre.textContent = '';
+    return;
+  }
+  exportBtn.disabled = false;
+
+  filteredEntries.forEach((e, i) => {
+    const pt = acmToPTLens(e.k1, e.k2, e.k3, e.focal);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="dim">${i+1}</td>
+      <td class="num">${e.focal} mm</td>
+      <td class="num">${e.focus >= 9999 ? '∞ (10000)' : e.focus + ' m'}</td>
+      <td class="num">f/${parseFloat(e.ap.toFixed(1))}</td>
+      <td>${fmt6(e.k1)}</td>
+      <td>${fmt6(e.k2)}</td>
+      <td>${fmt6(e.k3)}</td>
+      <td class="pt">${fmt6(pt.a)}</td>
+      <td class="pt">${fmt6(pt.b)}</td>
+      <td class="pt">${fmt6(pt.c)}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  rawPre.textContent = buildExportText();
+  xmlPre.textContent = buildXMLSnippet();
+
+  // ── Vignette table ────────────────────────────────────────────────────────
+  const vigEntries = [...allEntries]
+    .filter(e => !isNaN(e.v1))
+    .sort((a, b) => a.focal - b.focal || a.ap - b.ap || a.focus - b.focus);
+
+  const vigBody = document.getElementById('vigBody');
+  const vigMeta = document.getElementById('vigMeta');
+  vigBody.innerHTML = '';
+  if (vigEntries.length === 0) {
+    vigMeta.textContent = '0 entries — no vignette data in this LCP';
+    vigMeta.style.color = 'var(--warn)';
+  } else {
+    vigMeta.textContent = vigEntries.length + ' entries';
+    vigMeta.style.color = '';
+
+  vigEntries.forEach((e, i) => {
+    const fnum = parseFloat(Math.pow(2, e.ap / 2).toFixed(1));
+    const s = R_MAX / e.focal;   // R_MAX = half-diagonal; lensfun PA normalises to half-diagonal
+    const vk1 = e.v1 * s * s;
+    const vk2 = e.v2 * s * s * s * s;
+    const vk3 = e.v3 * s * s * s * s * s * s;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="dim">${i+1}</td>
+      <td class="num">${e.focal} mm</td>
+      <td class="num">f/${fnum}</td>
+      <td class="num">${e.focus >= 9999 ? '∞' : e.focus + ' m'}</td>
+      <td>${fmt6(e.v1)}</td>
+      <td>${fmt6(e.v2)}</td>
+      <td>${fmt6(e.v3)}</td>
+      <td class="pt">${fmt6(vk1)}</td>
+      <td class="pt">${fmt6(vk2)}</td>
+      <td class="pt">${fmt6(vk3)}</td>
+    `;
+    vigBody.appendChild(tr);
+  });
+  } // end else (vigEntries.length > 0)
+
+  // Show/hide vignette graph button based on whether vignette data exists
+  const vigGraphBtn = document.getElementById('toggleVigGraph');
+  if (vigEntries.length === 0) {
+    vigGraphBtn.style.display = 'none';
+    document.getElementById('vigGraphOutput').style.display = 'none';
+    vigGraphBtn.textContent = 'Show vignette graph';
+  } else {
+    vigGraphBtn.style.display = '';
+  }
+
+  const graphBtn = document.getElementById('toggleGraph');
+  if (filteredEntries.length >= 1) {
+    graphBtn.style.display = 'inline-flex';
+  } else {
+    graphBtn.style.display = 'none';
+    document.getElementById('graphOutput').style.display = 'none';
+    graphBtn.textContent = 'Show distortion graph';
+  }
+
+  // Redraw whichever graph is currently visible
+  refreshVisibleGraphs();
+}
+
+function refreshVisibleGraphs() {
+  if (document.getElementById('graphOutput').style.display === 'block' && filteredEntries.length >= 1) {
+    drawDistortionGraph(filteredEntries);
+  }
+  if (document.getElementById('vigGraphOutput').style.display === 'block') {
+    drawVignetteGraph();
+  }
+}
+
+// ── Build export text ─────────────────────────────────────────────────────────
+function buildExportText() {
+  const lines = [];
+  const now = new Date().toISOString().replace('T',' ').slice(0,19);
+  lines.push('LCP Lens Correction Converter');
+  lines.push('==================================================');
+  lines.push(`Source file    : ${lcpFilename}`);
+  lines.push(`Export time    : ${now}`);
+  lines.push(`Total entries  : ${allEntries.length}`);
+  lines.push(`Matched entries: ${filteredEntries.length}`);
+  lines.push('');
+
+  const apLabel = apMode === 'all' ? 'all' : 'f/' + parseFloat(apMode);
+  const fdLabelStr = fdMode === 'all' ? 'all' : parseFloat(fdMode) >= 9999 ? '∞ (10000 m)' : fdMode + ' m';
+  lines.push(`Filter         : aperture=${apLabel}  focus_distance=${fdLabelStr}`);
+  lines.push('');
+  lines.push(`Sensor         : ${SENSORS[activeSensorKey].name}  ${SENSOR_W} × ${SENSOR_H} mm  (diag ${SENSOR_DIAG.toFixed(2)} mm)`);
+  lines.push(`R_NORM         : ${R_NORM.toFixed(4)} mm  (half short side — lensfun r=1 normalisation)`);
+  lines.push(`R_MAX          : ${R_MAX.toFixed(4)} mm  (half diagonal)`);
+  lines.push(`r_max (fit)    : ${R_FIT_MAX.toFixed(6)}  (= R_MAX / R_NORM)`);
+  lines.push('');
+  lines.push('PTLens conversion: analytical least-squares (Cramér\'s rule) over [0, rm]');
+  lines.push('  rm = min(R_FIT_MAX, focal_mm/R_NORM)  — ACM valid range clamp (u ≤ 1)');
+  lines.push('  ACM residual:    Δ(r) = K1·r³ + K2·r⁵ + K3·r⁷');
+  lines.push('  PTLens residual: Δ(r) = c·r²  + b·r³  + a·r⁴');
+  lines.push('  where K1=k1·s², K2=k2·s⁴, K3=k3·s⁶,  s = R_NORM / focal_mm');
+  lines.push('');
+
+  const W = { no:4, fl:12, fd:16, ap:10, k1:14, k2:14, k3:14, a:14, b:14, c:14 };
+  const sep = '─'.repeat(Object.values(W).reduce((a,b)=>a+b,0) + 2);
+  lines.push(sep);
+  lines.push(
+    '#'.padEnd(W.no) +
+    'FocalLen'.padEnd(W.fl) +
+    'FocusDist'.padEnd(W.fd) +
+    'Aperture'.padEnd(W.ap) +
+    'ACM k1'.padEnd(W.k1) +
+    'ACM k2'.padEnd(W.k2) +
+    'ACM k3'.padEnd(W.k3) +
+    'PTL a'.padEnd(W.a) +
+    'PTL b'.padEnd(W.b) +
+    'PTL c'
+  );
+  lines.push(sep);
+
+  filteredEntries.forEach((e, i) => {
+    const pt = acmToPTLens(e.k1, e.k2, e.k3, e.focal);
+    const fd = e.focus >= 9999 ? '∞ (10000)' : e.focus + ' m';
+    lines.push(
+      String(i+1).padEnd(W.no) +
+      (e.focal + ' mm').padEnd(W.fl) +
+      fd.padEnd(W.fd) +
+      ('f/' + parseFloat(e.ap.toFixed(1))).padEnd(W.ap) +
+      fmt6(e.k1).padEnd(W.k1) +
+      fmt6(e.k2).padEnd(W.k2) +
+      fmt6(e.k3).padEnd(W.k3) +
+      fmt6(pt.a).padEnd(W.a) +
+      fmt6(pt.b).padEnd(W.b) +
+      fmt6(pt.c)
+    );
+  });
+
+  lines.push(sep);
+  lines.push('');
+  lines.push('PTLens XML entries (lensfun format):');
+  lines.push('');
+  filteredEntries.forEach(e => {
+    const pt = acmToPTLens(e.k1, e.k2, e.k3, e.focal);
+    lines.push(`  <distortion model="ptlens" focal="${e.focal}" a="${fmt6(pt.a)}" b="${fmt6(pt.b)}" c="${fmt6(pt.c)}" />`);
+  });
+  lines.push('');
+  lines.push('Column definitions:');
+  lines.push('  k1/k2/k3 = RadialDistortParam1/2/3 (ACM PerspectiveModel, LCP file)');
+  lines.push('  a/b/c    = PTLens coefficients in lensfun convention');
+  lines.push('             PTLens model: Rd = Ru·(1 + c·Ru + b·Ru² + a·Ru³)');
+  lines.push('             r normalised to R_NORM (half sensor short side)');
+  lines.push('');
+
+  // Vignette section — all entries, sorted focal > focus > aperture
+  const vigEntries = [...allEntries]
+    .filter(e => !isNaN(e.v1))
+    .sort((a, b) => a.focal - b.focal || a.ap - b.ap || a.focus - b.focus);
+
+  if (vigEntries.length > 0) {
+    lines.push('─'.repeat(sep.length));
+    lines.push('Vignetting XML entries (lensfun PA model) — all apertures & distances:');
+    lines.push('  ACM: r in focal-length units → PA: r in half-diagonal units (R_MAX = half-diagonal = ' + R_MAX.toFixed(3) + ' mm)');
+    lines.push('  k1_pa = k1_acm×(R_MAX/f)²,  k2_pa = k2_acm×(R_MAX/f)⁴,  k3_pa = k3_acm×(R_MAX/f)⁶');
+    lines.push('  aperture = f-number = 2^(ApertureValue/2), rounded to 1 dp');
+    lines.push('');
+    vigEntries.forEach(e => {
+      const fnum = Math.pow(2, e.ap / 2);
+      const ap6  = parseFloat(fnum.toFixed(1));
+      // ACM: r = dist/focal_mm  →  PA: r = dist/R_MAX  (lensfun normalises to half-diagonal)
+      // k_lf = k_acm × (R_MAX / focal_mm)^(2n)
+      const s = R_MAX / e.focal;
+      const vk1 = e.v1 * s * s;
+      const vk2 = e.v2 * s * s * s * s;
+      const vk3 = e.v3 * s * s * s * s * s * s;
+      lines.push(`  <vignetting model="pa" focal="${e.focal}" aperture="${ap6}" distance="${e.focus}" k1="${fmt6(vk1)}" k2="${fmt6(vk2)}" k3="${fmt6(vk3)}" />`);
+    });
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+exportBtn.addEventListener('click', () => {
+  const text = buildExportText();
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const apPart = apMode === 'all' ? 'all-ap' : 'f' + parseFloat(apMode);
+  const fdPart = fdMode === 'all' ? 'all-fd' : parseFloat(fdMode) >= 9999 ? 'inf' : 'fd' + fdMode;
+  const safeName = (lensName || lcpFilename.replace(/\.lcp$/i, ''))
+    .replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  a.href = url; a.download = `${safeName}_${apPart}_${fdPart}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+});
+
+let vigTableVisible = true;
+function toggleVigTable() {
+  vigTableVisible = !vigTableVisible;
+  document.getElementById('vigTableWrap').style.display = vigTableVisible ? '' : 'none';
+  document.getElementById('vigToggleArrow').innerHTML = vigTableVisible ? '&#9660; hide' : '&#9658; show';
+}
+
+let distTableVisible = true;
+function toggleDistTable() {
+  distTableVisible = !distTableVisible;
+  document.getElementById('distTableWrap').style.display = distTableVisible ? '' : 'none';
+  document.getElementById('distToggleArrow').innerHTML = distTableVisible ? '&#9660; hide' : '&#9658; show';
+}
+
+function closeAllPreviews() {
+  rawOutput.style.display = 'none';
+  toggleRawBtn.textContent = 'Show .txt';
+  xmlOutput.style.display = 'none';
+  document.getElementById('toggleXml').textContent = 'Show .xml';
+  document.getElementById('graphOutput').style.display = 'none';
+  document.getElementById('toggleGraph').textContent = 'Show distortion graph';
+  document.getElementById('vigGraphOutput').style.display = 'none';
+  document.getElementById('toggleVigGraph').textContent = 'Show vignette graph';
+}
+
+toggleRawBtn.addEventListener('click', () => {
+  const visible = rawOutput.style.display === 'block';
+  closeAllPreviews();
+  if (!visible) { rawOutput.style.display = 'block'; toggleRawBtn.textContent = 'Hide .txt'; }
+});
+
+document.getElementById('toggleXml').addEventListener('click', () => {
+  const visible = xmlOutput.style.display === 'block';
+  closeAllPreviews();
+  if (!visible) { xmlOutput.style.display = 'block'; document.getElementById('toggleXml').textContent = 'Hide .xml'; }
+});
+
+document.getElementById('toggleGraph').addEventListener('click', () => {
+  const graphOut = document.getElementById('graphOutput');
+  const visible = graphOut.style.display === 'block';
+  closeAllPreviews();
+  if (!visible) {
+    graphOut.style.display = 'block';
+    document.getElementById('toggleGraph').textContent = 'Hide distortion graph';
+    drawDistortionGraph(filteredEntries);
+  }
+});
+
+function drawDistortionGraph(entries) {
+  // Accept array or single entry for backwards compat
+  if (!Array.isArray(entries)) entries = [entries];
+
+  const canvas = document.getElementById('distCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth;
+  const H = Math.round(W * 0.45);
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const cs = getComputedStyle(document.documentElement);
+  const monoFont = cs.getPropertyValue('--mono').trim() || 'monospace';
+  const bg      = cs.getPropertyValue('--surface').trim() || '#fff';
+  const border  = cs.getPropertyValue('--border').trim() || '#ccc';
+  const textDim = cs.getPropertyValue('--text-dim').trim() || '#888';
+
+  // Multi-focal palette: ACM and PTLens get paired hues per focal length.
+  // Single entry: keep the classic amber/blue.
+  const PALETTES = [
+    { acm: '#b07800', pt: '#0068a8' },  // amber / blue
+    { acm: '#7a1fa2', pt: '#2d7a1f' },  // purple / green
+    { acm: '#c0392b', pt: '#16a085' },  // red / teal
+    { acm: '#d35400', pt: '#1a5276' },  // orange / dark blue
+    { acm: '#7f8c0a', pt: '#884ea0' },  // olive / violet
+  ];
+
+  const N = 300;
+  // Sort by focal length for consistent legend order
+  const sorted = [...entries].sort((a, b) => a.focal - b.focal);
+
+  // Build all curves and find global y range
+  let yMin = 0, yMax = 0;
+  const curves = sorted.map((entry, ci) => {
+    const { k1, k2, k3, focal } = entry;
+    const pt = acmToPTLens(k1, k2, k3, focal);
+    const acmCurve = [], ptCurve = [];
+    for (let i = 0; i <= N; i++) {
+      const r_mm  = (i / N) * R_MAX;
+      const r_acm = r_mm / focal;
+      const r_lf  = r_mm / R_NORM;
+      const acmDist = -(k1 * r_acm**2 + k2 * r_acm**4 + k3 * r_acm**6) * 100;
+      const ptDist  = -(pt.c * r_lf + pt.b * r_lf**2 + pt.a * r_lf**3) * 100;
+      acmCurve.push(acmDist);
+      ptCurve.push(ptDist);
+      yMin = Math.min(yMin, acmDist, ptDist);
+      yMax = Math.max(yMax, acmDist, ptDist);
+    }
+    return { entry, pt, acmCurve, ptCurve, palette: PALETTES[ci % PALETTES.length] };
+  });
+
+  // Pad y range — always include 0
+  const yPad = Math.max(0.05, (yMax - yMin) * 0.12);
+  yMin = Math.min(yMin - yPad, -yPad);
+  yMax = Math.max(yMax + yPad,  yPad);
+
+  // Legend width — needs enough room for focal labels
+  const multi = sorted.length > 1;
+  const PAD = { t: 32, r: multi ? 130 : 90, b: 48, l: 60 };
+  const pw = W - PAD.l - PAD.r;
+  const ph = H - PAD.t - PAD.b;
+
+  const xScale = r => PAD.l + (r / N) * pw;
+  const yScale = v => PAD.t + ph - ((v - yMin) / (yMax - yMin)) * ph;
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.font = `10px ${monoFont}`;
+  ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+  const yTicks = 6;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yMax - yMin) * i / yTicks;
+    const y = yScale(v);
+    ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + pw, y); ctx.stroke();
+    ctx.fillStyle = textDim; ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(2) + '%', PAD.l - 6, y + 3.5);
+  }
+  ctx.textAlign = 'center';
+  for (let mm = 0; mm <= R_MAX; mm += 5) {
+    const xi = (mm / R_MAX) * N;
+    const x = xScale(xi);
+    ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ph); ctx.stroke();
+    ctx.fillStyle = textDim;
+    ctx.fillText(mm + 'mm', x, PAD.t + ph + 14);
+  }
+
+  // Zero line
+  const y0 = yScale(0);
+  ctx.strokeStyle = textDim; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(PAD.l + pw, y0); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = textDim; ctx.textAlign = 'right';
+  ctx.fillText('0%', PAD.l - 6, y0 + 3.5);
+
+  // Draw curves
+  function drawCurve(data, color, dash) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    if (dash) ctx.setLineDash([5, 3]); else ctx.setLineDash([]);
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = xScale(i), y = yScale(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  curves.forEach(({ acmCurve, ptCurve, palette }) => {
+    drawCurve(acmCurve, palette.acm, false);
+    drawCurve(ptCurve,  palette.pt,  true);   // PTLens dashed to distinguish from ACM
+  });
+
+  // Axes border
+  ctx.strokeStyle = border; ctx.lineWidth = 1;
+  ctx.strokeRect(PAD.l, PAD.t, pw, ph);
+
+  // Legend
+  const lx = PAD.l + pw + 8;
+  ctx.font = `10px ${monoFont}`;
+  if (multi) {
+    // Per-focal entry: colour swatch + "NNmm ACM" and "NNmm PT" rows
+    curves.forEach(({ entry, palette }, ci) => {
+      const fl = entry.focal + 'mm';
+      const y = PAD.t + ci * 32 + 14;
+      // ACM solid
+      ctx.fillStyle = palette.acm;
+      ctx.fillRect(lx, y - 6, 18, 3);
+      ctx.textAlign = 'left';
+      ctx.fillText(fl + ' ACM', lx + 22, y - 2);
+      // PTLens dashed
+      ctx.strokeStyle = palette.pt; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath(); ctx.moveTo(lx, y + 8); ctx.lineTo(lx + 18, y + 8); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = palette.pt;
+      ctx.fillText(fl + ' PTL', lx + 22, y + 12);
+    });
+  } else {
+    // Single entry: classic compact legend top-right
+    const e = sorted[0];
+    const pal = curves[0].palette;
+    const ly = PAD.t + 14;
+    ctx.fillStyle = pal.acm; ctx.fillRect(lx, ly - 6, 18, 3);
+    ctx.textAlign = 'left'; ctx.fillText('ACM', lx + 22, ly - 2);
+    ctx.strokeStyle = pal.pt; ctx.lineWidth = 2;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath(); ctx.moveTo(lx, ly + 8); ctx.lineTo(lx + 18, ly + 8); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = pal.pt; ctx.fillText('PTLens', lx + 22, ly + 12);
+  }
+
+  // Title
+  ctx.fillStyle = textDim; ctx.textAlign = 'center';
+  ctx.font = `11px ${monoFont}`;
+  const e0 = sorted[0];
+  const focalLabel = multi
+    ? sorted.map(e => e.focal + 'mm').join(', ')
+    : `${e0.focal}mm  f/${parseFloat(e0.ap.toFixed(1))}  focus ${e0.focus >= 9999 ? '∞' : e0.focus + 'm'}`;
+  ctx.fillText(`${focalLabel}  —  Distortion Correction % along sensor diagonal`, PAD.l + pw / 2, PAD.t - 10);
+
+  // ── Cursor readout ────────────────────────────────────────────────────────
+  const readout = document.getElementById('graphReadout');
+  canvas.onmousemove = (evt) => {
+    const rect = canvas.getBoundingClientRect();
+    const frac = (evt.clientX - rect.left - PAD.l) / pw;
+    if (frac < 0 || frac > 1) { readout.textContent = ''; return; }
+    const idx = Math.round(frac * N);
+    const r_mm = (idx / N) * R_MAX;
+    const parts = curves.map(({ entry, acmCurve, ptCurve }) => {
+      const fl = entry.focal + 'mm';
+      return `${fl} ACM: ${acmCurve[idx] >= 0 ? '+' : ''}${acmCurve[idx].toFixed(4)}%  PT: ${ptCurve[idx] >= 0 ? '+' : ''}${ptCurve[idx].toFixed(4)}%`;
+    });
+    readout.textContent = `r = ${r_mm.toFixed(2)} mm  |  ` + parts.join('  |  ');
+  };
+  canvas.onmouseleave = () => { readout.textContent = ''; };
+}
+
+document.getElementById('toggleVigGraph').addEventListener('click', () => {
+  const vigGraphOut = document.getElementById('vigGraphOutput');
+  const visible = vigGraphOut.style.display === 'block';
+  closeAllPreviews();
+  if (!visible) {
+    vigGraphOut.style.display = 'block';
+    document.getElementById('toggleVigGraph').textContent = 'Hide vignette graph';
+    drawVignetteGraph();
+  }
+});
+
+function drawVignetteGraph() {
+  const canvas = document.getElementById('vigCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth;
+  const H = Math.round(W * 0.45);
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD = { t: 32, r: 120, b: 48, l: 64 };
+  const pw = W - PAD.l - PAD.r;
+  const ph = H - PAD.t - PAD.b;
+
+  const cs = getComputedStyle(document.documentElement);
+  const bg      = cs.getPropertyValue('--surface').trim();
+  const border  = cs.getPropertyValue('--border').trim();
+  const textDim = cs.getPropertyValue('--text-dim').trim();
+  const monoFont = cs.getPropertyValue('--mono').trim() || 'monospace';
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Collect vignette entries for selected aperture
+  // Vignette graph: all apertures at infinity focus, one curve per aperture
+  const vigAll = allEntries.filter(e => !isNaN(e.v1));
+  // Use the largest (furthest) available focus distance as the representative set
+  const maxFocus = vigAll.reduce((m, e) => Math.max(m, e.focus), -Infinity);
+  const vigPool = vigAll
+    .filter(e => e.focus === maxFocus)
+    .sort((a, b) => a.ap - b.ap);
+
+  if (!vigPool.length) {
+    ctx.fillStyle = textDim;
+    ctx.font = `12px \${monoFont}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('No vignette data for selected aperture', W / 2, H / 2);
+    return;
+  }
+
+  // Colour palette per focus distance
+  const palette = ['#2d7a1f','#0068a8','#b07800','#8b2fc9','#c0392b','#16a085','#e67e22'];
+  const N = 300;
+
+  // Build curves: illumination % = 100 / L(r)  where L = 1 + v1*r² + v2*r⁴ + v3*r⁶
+  // r = r_mm / focal_mm  (ACM focal-length normalised)
+  const curves = vigPool.map(e => {
+    const data = [];
+    for (let i = 0; i <= N; i++) {
+      const r_mm = (i / N) * R_MAX;
+      const r = r_mm / e.focal;
+      const L = 1 + e.v1 * r**2 + e.v2 * r**4 + e.v3 * r**6;
+      // illumination fall-off as % of centre (L at r=0 is 1)
+      data.push(-Math.log2(Math.max(L, 1e-9)));  // negative EV = fall-off
+    }
+    return data;
+  });
+
+  // Y range
+  let yMin = 0, yMax = 0;
+  curves.forEach(c => c.forEach(v => { yMin = Math.min(yMin, v); yMax = Math.max(yMax, v); }));
+  const yPad = Math.max(0.05, (yMax - yMin) * 0.12);
+  yMin = Math.min(yMin - yPad, -yPad);
+  yMax = Math.max(yMax + yPad,  yPad);
+
+  const xScale = i  => PAD.l + (i / N) * pw;
+  const yScale = v  => PAD.t + ph - ((v - yMin) / (yMax - yMin)) * ph;
+
+  // Grid
+  ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+  ctx.font = `10px \${monoFont}`;
+  const yTicks = 6;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yMax - yMin) * i / yTicks;
+    const y = yScale(v);
+    ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + pw, y); ctx.stroke();
+    ctx.fillStyle = textDim; ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(2) + ' EV', PAD.l - 6, y + 3.5);
+  }
+  // x ticks every 5mm
+  ctx.textAlign = 'center';
+  for (let mm = 0; mm <= R_MAX; mm += 5) {
+    const xi = (mm / R_MAX) * N;
+    const x = xScale(xi);
+    ctx.strokeStyle = border; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ph); ctx.stroke();
+    ctx.fillStyle = textDim;
+    ctx.fillText(mm + 'mm', x, PAD.t + ph + 14);
+  }
+
+  // 100% line
+  // 0 EV origin line
+  const y0ev = yScale(0);
+  ctx.strokeStyle = textDim; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, y0ev); ctx.lineTo(PAD.l + pw, y0ev); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = textDim; ctx.textAlign = 'right';
+  ctx.fillText('0 EV', PAD.l - 6, y0ev + 3.5);
+
+  // Draw curves
+  curves.forEach((data, ci) => {
+    const col = palette[ci % palette.length];
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = xScale(i), y = yScale(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  });
+
+  // Axes border
+  ctx.strokeStyle = border; ctx.lineWidth = 1;
+  ctx.strokeRect(PAD.l, PAD.t, pw, ph);
+
+  // Legend (right side)
+  const lx = PAD.l + pw + 8;
+  const fnum = apMode === 'all' ? 'all' : 'f/' + parseFloat(parseFloat(apMode) > 1 ? Math.pow(2, parseFloat(apMode)/2).toFixed(1) : apMode);
+  ctx.font = `10px \${monoFont}`;
+  vigPool.forEach((e, ci) => {
+    const col = palette[ci % palette.length];
+    const y = PAD.t + ci * 16 + 10;
+    ctx.fillStyle = col;
+    ctx.fillRect(lx, y - 5, 18, 3);
+    ctx.textAlign = 'left';
+    ctx.fillText('f/' + parseFloat(Math.pow(2, e.ap / 2).toFixed(1)), lx + 22, y);
+  });
+
+  // Title
+  ctx.fillStyle = textDim; ctx.textAlign = 'center';
+  ctx.font = `11px \${monoFont}`;
+  const apLabel = apMode === 'all' ? 'all apertures' : 'f/' + parseFloat(Math.pow(2, parseFloat(apMode)/2).toFixed(1));
+  const focusLabel = maxFocus >= 9999 ? '∞' : maxFocus + ' m';
+  ctx.fillText(`Vignette Correction — Illumination increase (EV) — all apertures — focus ${focusLabel}`, PAD.l + pw / 2, PAD.t - 10);
+
+  // Cursor readout
+  const readout = document.getElementById('vigGraphReadout');
+  canvas.onmousemove = (evt) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = evt.clientX - rect.left;
+    const frac = (mx - PAD.l) / pw;
+    if (frac < 0 || frac > 1) { readout.textContent = ''; return; }
+    const idx = Math.round(frac * N);
+    const r_mm = (idx / N) * R_MAX;
+    const vals = curves.map((c, ci) => {
+      const fd = 'f/' + parseFloat(Math.pow(2, vigPool[ci].ap / 2).toFixed(1));
+      return fd + ': ' + curves[ci][idx].toFixed(3) + ' EV';
+    }).join('  |  ');
+    readout.textContent = 'r = ' + r_mm.toFixed(2) + ' mm  |  ' + vals;
+  };
+  canvas.onmouseleave = () => { readout.textContent = ''; };
+}
+
+clearBtn.addEventListener('click', () => {
+  allEntries = []; filteredEntries = []; lcpFilename = ''; lensName = ''; lensMaker = ''; lensModel = ''; lensCropfactor = '';
+  fileBadge.style.display = 'none';
+  resultsSection.style.display = 'none';
+  statusBar.className = 'status-bar'; statusBar.style.display = 'none';
+  fileInput.value = ''; fdNoteEl.textContent = '—';
+  apSelect.innerHTML = '<option value="all">All apertures</option>';
+  apMode = 'all'; updateApNote();
+  fdSelect.innerHTML = '<option value="all">All distances</option>';
+  fdMode = 'all'; fdNoteEl.textContent = '—';
+  // Close and blank both graph canvases
+  closeAllPreviews();
+  ['distCanvas', 'vigCanvas'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); }
+  });
+});
+
+
+// ── Build lensfun XML snippet ───────────────────────────────────────────────────────────────────────
+function buildXMLSnippet() {
+  const maker  = lensMaker   || 'Unknown';
+  const model  = lensModel   || lensName || 'Unknown';
+  const crop   = lensCropfactor || '1.0';
+  const mount  = document.getElementById('dispMount').value.trim() || SENSORS[activeSensorKey].mount;
+  const year   = new Date().getFullYear();
+  const author = 'John L Nevill ' + year;
+
+  const lines = [];
+  lines.push('<lensdatabase>');
+  lines.push('');
+  lines.push('  <lens> <!-- ' + author + ' -->');
+  lines.push('    <maker>' + maker + '</maker>');
+  lines.push('    <model>' + model + '</model>');
+  lines.push('    <mount>' + mount + '</mount>');
+  lines.push('    <cropfactor>' + crop + '</cropfactor>');
+  lines.push('    <calibration>');
+
+  // Distortion — filtered entries only (one per focal/focus combo matching filter)
+  if (filteredEntries.length > 0) {
+    lines.push('');
+    lines.push('      <!-- Distortion -->');
+    filteredEntries.forEach(e => {
+      const pt = acmToPTLens(e.k1, e.k2, e.k3, e.focal);
+      lines.push(`      <distortion model="ptlens" focal="${e.focal}" a="${fmt6(pt.a)}" b="${fmt6(pt.b)}" c="${fmt6(pt.c)}" />`);
+    });
+  }
+
+  // Vignetting — all entries sorted focal > aperture > focus
+  const vigEntries = [...allEntries]
+    .filter(e => !isNaN(e.v1))
+    .sort((a, b) => a.focal - b.focal || a.ap - b.ap || a.focus - b.focus);
+
+  if (vigEntries.length > 0) {
+    lines.push('');
+    lines.push('      <!-- Vignetting -->');
+    vigEntries.forEach(e => {
+      const fnum = parseFloat(Math.pow(2, e.ap / 2).toFixed(1));
+      const s = R_MAX / e.focal;   // R_MAX = half-diagonal; lensfun PA normalises to half-diagonal
+      const vk1 = e.v1 * s * s;
+      const vk2 = e.v2 * s * s * s * s;
+      const vk3 = e.v3 * s * s * s * s * s * s;
+      lines.push(`      <vignetting model="pa" focal="${e.focal}" aperture="${fnum}" distance="${e.focus}" k1="${fmt6(vk1)}" k2="${fmt6(vk2)}" k3="${fmt6(vk3)}" />`);
+    });
+  }
+
+  lines.push('');
+  lines.push('    </calibration>');
+  lines.push('  </lens>');
+  lines.push('');
+  lines.push('</lensdatabase>');
+  return lines.join('\n');
+}
+
+document.getElementById('exportXml').addEventListener('click', () => {
+  const xml  = buildXMLSnippet();
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const safeName = (lensName || lcpFilename.replace(/\.lcp$/i, ''))
+    .replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  a.href = url; a.download = `${safeName}_lensfun.xml`;
+  a.click(); URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>

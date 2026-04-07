@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Depth of Field Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f5f7fa;
+    --border: #dde1e9;
+    --accent: #1a6aff;
+    --text: #1c2333;
+    --muted: #7a869a;
+    --teal: #0891b2;
+    --purple: #7c3aed;
+    --red: #dc2626;
+    --orange: #ea580c;
+    --lime: #4d7c0f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 32px 24px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: ''; position: fixed;
+    top: -40%; right: -20%; width: 600px; height: 600px;
+    background: radial-gradient(ellipse, rgba(26,106,255,0.05) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: ''; position: fixed;
+    bottom: -20%; left: -10%; width: 500px; height: 500px;
+    background: radial-gradient(ellipse, rgba(8,145,178,0.06) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrapper { max-width: 1400px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { margin-bottom: 36px; }
+
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid rgba(26,106,255,0.25);
+    padding: 4px 10px; border-radius: 2px; margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(26px, 5vw, 44px);
+    font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; color: var(--text);
+  }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; margin-top: 8px; }
+
+  .layout {
+    display: grid; grid-template-columns: 340px 1fr;
+    gap: 24px; align-items: start;
+  }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 22px;
+  }
+  .panel + .panel { margin-top: 16px; }
+
+  /* Remove position:relative from panels — popups now use fixed positioning */
+
+  .panel-title {
+    font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 18px; padding-bottom: 11px; border-bottom: 1px solid var(--border);
+  }
+
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+
+  select, input[type="number"] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 13px; padding: 9px 12px; outline: none;
+    transition: border-color 0.2s; -webkit-appearance: none;
+  }
+  select:focus, input[type="number"]:focus { border-color: rgba(26,106,255,0.5); }
+  select option { background: var(--surface); }
+
+  /* Range inputs */
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none;
+    cursor: pointer; margin-top: 4px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(26,106,255,0.15);
+  }
+  input[type="range"].warn::-webkit-slider-thumb { background: var(--red); box-shadow: 0 0 0 3px rgba(220,38,38,0.15); }
+  input[type="range"].caution::-webkit-slider-thumb { background: var(--orange); box-shadow: 0 0 0 3px rgba(234,88,12,0.15); }
+
+  .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* Aperture tick bar — positioned labels that align with actual slider stops */
+  .aperture-ticks {
+    position: relative; height: 18px; margin-top: 5px;
+  }
+  .aperture-ticks span {
+    position: absolute; font-size: 9px; color: var(--muted);
+    transform: translateX(-50%); white-space: nowrap;
+    letter-spacing: 0; line-height: 1;
+  }
+  .aperture-ticks span:first-child { transform: translateX(0); }
+  .aperture-ticks span:last-child  { transform: translateX(-100%); }
+
+  .val-inline { font-size: 15px; color: var(--accent); font-weight: 500; letter-spacing: -0.01em; }
+  .val-inline.warn    { color: var(--red); }
+  .val-inline.caution { color: var(--orange); }
+
+  /* Pixel strip */
+  .pixel-strip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px 12px; margin-bottom: 16px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  }
+  .px-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .px-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .px-value.hi { color: var(--accent); }
+
+  /* CoC / diffraction breakdown */
+  .coc-breakdown {
+    background: rgba(26,106,255,0.04); border: 1px solid rgba(26,106,255,0.12);
+    border-radius: 4px; padding: 10px 12px; font-size: 11px; line-height: 1.8; color: var(--muted);
+  }
+  .coc-breakdown strong { color: var(--accent); font-weight: 500; }
+  .coc-breakdown .formula { font-size: 10px; color: var(--muted); opacity: 0.7; margin-top: 4px; }
+
+  /* Results grid */
+  .results-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px; margin-bottom: 20px;
+  }
+  @media (max-width: 560px) { .results-grid { grid-template-columns: 1fr 1fr; } }
+
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 5px; padding: 14px 16px; position: relative; overflow: hidden;
+  }
+  .result-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  }
+  .result-card.near::before   { background: var(--accent); }
+  .result-card.far::before    { background: var(--purple); }
+  .result-card.dof::before    { background: var(--teal); }
+  .result-card.hyper::before  { background: rgba(26,106,255,0.35); }
+  .result-card.diffr::before  { background: var(--red); }
+  .result-card.diffr.ok::before { background: var(--teal); }
+  .result-card.diffr.caution::before { background: var(--orange); }
+
+  .result-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .result-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .result-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .result-value.warn    { color: var(--red); }
+  .result-value.caution { color: var(--orange); }
+  .result-value.ok      { color: var(--teal); }
+
+  /* Diffraction warning banner */
+  .diffr-banner {
+    border-radius: 5px; padding: 10px 14px;
+    font-size: 11px; line-height: 1.6; margin-bottom: 20px;
+    display: none;
+  }
+  .diffr-banner.warn {
+    display: block;
+    background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.2); color: #991b1b;
+  }
+  .diffr-banner.caution {
+    display: block;
+    background: rgba(234,88,12,0.06); border: 1px solid rgba(234,88,12,0.18); color: #9a3412;
+  }
+  .diffr-banner strong { font-weight: 500; }
+
+  /* Viz panels */
+  .viz-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 20px; }
+  .viz-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .viz-title { font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .viz-badge { font-size: 11px; color: var(--accent); letter-spacing: 0.04em; font-weight: 500; }
+
+  .viz-canvas-wrap { padding: 20px 20px 8px; }
+  canvas { width: 100%; display: block; border-radius: 4px; }
+
+  .legend { display: flex; gap: 18px; padding: 0 20px 18px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  .legend-swatch { width: 24px; height: 3px; border-radius: 1px; flex-shrink: 0; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Hyper info */
+  .hyper-info {
+    background: rgba(26,106,255,0.04); border: 1px solid rgba(26,106,255,0.12);
+    border-radius: 5px; padding: 12px 14px; font-size: 11px; color: var(--muted); line-height: 1.7;
+  }
+  .hyper-info strong { color: var(--accent); font-weight: 500; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Help icon & popup */
+  .help-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--border); color: var(--muted);
+    font-size: 9px; font-style: normal; font-family: 'DM Mono', monospace;
+    cursor: pointer; margin-left: 6px; vertical-align: middle;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .help-icon:hover { background: var(--accent); color: #fff; }
+
+  .help-popup {
+    display: none;
+    position: fixed; z-index: 9999;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px 20px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18), 0 2px 12px rgba(0,0,0,0.1);
+    width: 320px;
+    font-size: 11px; line-height: 1.7; color: var(--muted);
+    overflow-y: auto; max-height: 80vh;
+  }
+  .help-popup.open { display: block; }
+  .help-popup p { margin-bottom: 9px; }
+  .help-popup p:last-child { margin-bottom: 0; }
+  .help-popup strong { color: var(--text); font-weight: 500; }
+  .help-title {
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.04em;
+    margin-bottom: 12px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .help-note {
+    background: rgba(26,106,255,0.05); border: 1px solid rgba(26,106,255,0.12);
+    border-radius: 4px; padding: 8px 10px;
+    color: var(--accent) !important; font-size: 10px; line-height: 1.5;
+    margin-top: 4px;
+  }
+  .help-close {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 12px; padding: 2px 4px;
+    line-height: 1; border-radius: 3px;
+  }
+  .help-close:hover { background: var(--surface2); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="badge">Pixel-accurate · v3 · Diffraction</div>
+    <h1>Depth of <span>Field</span></h1>
+    <p class="subtitle">CoC from real pixel pitch · Hyperfocal · Diffraction limit · Aperture sweet-spot</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- ── Left ── -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">Sensor</div>
+
+        <div class="field">
+          <label>Camera / Sensor</label>
+          <select id="sensorPreset">
+            <option value="custom">— Custom / Manual entry —</option>
+            <optgroup label="Medium Format">
+              <option value="hassx2d2">Hasselblad X2D II · 100MP</option>
+              <option value="hassx1d2">Hasselblad X1D II · 50MP</option>
+              <option value="gfx100s">Fujifilm GFX 100S · 102MP</option>
+              <option value="gfx100ii">Fujifilm GFX 100 II · 102MP</option>
+              <option value="gfx50sii">Fujifilm GFX 50S II · 51MP</option>
+            </optgroup>
+            <optgroup label="Full Frame">
+              <option value="sonya7rv">Sony A7R V · 61MP</option>
+              <option value="sonya7iv">Sony A7 IV · 33MP</option>
+              <option value="nikz8">Nikon Z8 / Z9 · 45MP</option>
+              <option value="nikzf">Nikon Zf / Z6 III · 24MP</option>
+              <option value="canr5ii">Canon EOS R5 II · 45MP</option>
+              <option value="canr6ii">Canon EOS R6 II · 24MP</option>
+              <option value="leicam11">Leica M11 · 60MP</option>
+            </optgroup>
+            <optgroup label="APS-C">
+              <option value="fujixt5" selected>Fujifilm X-T5 / X100VI · 40MP</option>
+              <option value="fujixt4">Fujifilm X-T4 / X-T3 · 26MP</option>
+              <option value="fujixt30">Fujifilm X-T30 II · 26MP</option>
+              <option value="sonya6700">Sony A6700 · 26MP</option>
+              <option value="nikzfc">Nikon Zfc / Z50 · 21MP</option>
+              <option value="canr50">Canon EOS R50 · 24MP</option>
+              <option value="canr7">Canon EOS R7 · 32MP</option>
+            </optgroup>
+            <optgroup label="Micro Four Thirds">
+              <option value="omds5ii">OM System OM-5 · 20MP</option>
+              <option value="panag9ii">Panasonic G9 II · 25MP</option>
+            </optgroup>
+            <optgroup label="1-inch">
+              <option value="sonyrx100vii">Sony RX100 VII · 20MP</option>
+              <option value="sonyzv1ii">Sony ZV-1 II · 20MP</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="pixel-strip">
+          <div><div class="px-label">Sensor size</div><div class="px-value" id="pxSensorSize">—</div></div>
+          <div><div class="px-label">Pixel pitch</div><div class="px-value hi" id="pxPitch">—</div></div>
+          <div><div class="px-label">Resolution</div><div class="px-value" id="pxMP">—</div></div>
+        </div>
+
+        <div id="customFields" style="display:none">
+          <div class="two-col field">
+            <div><label>Sensor width (mm)</label><input type="number" id="custW" value="23.5" step="0.1" min="1" max="100"></div>
+            <div><label>Sensor height (mm)</label><input type="number" id="custH" value="15.6" step="0.1" min="1" max="100"></div>
+          </div>
+          <div class="two-col field">
+            <div><label>Pixel columns</label><input type="number" id="custCols" value="7728" step="1" min="100" max="25000"></div>
+            <div><label>Pixel rows</label><input type="number" id="custRows" value="5152" step="1" min="100" max="25000"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>CoC multiplier — <span class="val-inline" id="multDisplay">2.0×</span> pixel pitch
+            <span class="help-icon" id="cocHelpBtn">?</span>
+          </label>
+          <input type="range" id="cocMult" min="10" max="100" step="1" value="20">
+          <div class="aperture-ticks" id="cocMultTicks"></div>
+        </div>
+
+        <div class="coc-breakdown" id="cocBreakdown">—</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Lens &amp; Focus
+          <span class="help-icon" id="lensHelpBtn">?</span>
+        </div>
+
+        <div class="field">
+          <label>Focal Length (mm)</label>
+          <input type="number" id="focalLength" value="35" min="1" max="2000" step="1">
+        </div>
+
+        <div class="field">
+          <label>Aperture — <span class="val-inline" id="apertureDisplay">f/5.6</span></label>
+          <input type="range" id="aperture" min="0" max="27" step="1" value="15">
+          <div class="aperture-ticks" id="apertureTicks"></div>
+        </div>
+
+        <div class="field">
+          <label>Focus Distance — <span class="val-inline" id="distDisplay">3.0 m</span></label>
+          <input type="range" id="distance" min="0" max="99" step="1" value="30">
+          <div class="range-labels"><span>0.3m</span><span>1m</span><span>5m</span><span>25m</span><span>∞</span></div>
+        </div>
+
+        <div class="field">
+          <label>Units</label>
+          <select id="units"><option value="m">Metres</option><option value="ft">Feet</option></select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Hyperfocal
+          <span class="help-icon" id="hyperHelpBtn">?</span>
+        </div>
+        <div id="hyperfocalInfo" class="hyper-info">—</div>
+      </div>
+    </div><!-- /left -->
+
+    <!-- ── Right ── -->
+    <div>
+
+      <div id="diffrBanner" class="diffr-banner"></div>
+
+      <div class="results-grid">
+        <div class="result-card near">
+          <div class="result-label">Near Limit</div>
+          <div class="result-value" id="nearVal">—</div>
+          <div class="result-sub"  id="nearSub"></div>
+        </div>
+        <div class="result-card far">
+          <div class="result-label">Far Limit</div>
+          <div class="result-value" id="farVal">—</div>
+          <div class="result-sub"  id="farSub"></div>
+        </div>
+        <div class="result-card dof">
+          <div class="result-label">Total DoF</div>
+          <div class="result-value" id="dofVal">—</div>
+          <div class="result-sub"  id="dofSub"></div>
+        </div>
+        <div class="result-card hyper">
+          <div class="result-label">Hyperfocal</div>
+          <div class="result-value" id="hyperVal">—</div>
+          <div class="result-sub"  id="hyperSub"></div>
+        </div>
+        <div class="result-card diffr" id="diffrCard">
+          <div class="result-label">Diffraction limit</div>
+          <div class="result-value" id="diffrVal">—</div>
+          <div class="result-sub"  id="diffrSub"></div>
+        </div>
+        <div class="result-card diffr" id="airyCard">
+          <div class="result-label">Airy disk</div>
+          <div class="result-value" id="airyVal">—</div>
+          <div class="result-sub"  id="airySub"></div>
+        </div>
+      </div>
+
+      <!-- Side-view DoF diagram -->
+      <div class="viz-panel">
+        <div class="viz-header">
+          <span class="viz-title">Field of Sharpness — Side View
+            <span class="help-icon" id="dofVizHelpBtn">?</span>
+          </span>
+          <span class="viz-badge" id="cocBadge">CoC: —</span>
+        </div>
+        <div class="viz-canvas-wrap">
+          <canvas id="dofCanvas" height="280"></canvas>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>Unsharp (near)</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#0891b2"></div>Sharp zone</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>Unsharp (far)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1c2333;opacity:.5"></div>Focus point</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(26,106,255,0.5)"></div>Hyperfocal (H)</div>
+        </div>
+      </div>
+
+      <!-- Aperture sweet-spot chart -->
+      <div class="viz-panel">
+        <div class="viz-header">
+          <span class="viz-title">Aperture vs Effective Sharpness
+            <span class="help-icon" id="sweetHelpBtn">?</span>
+          </span>
+          <span class="viz-badge" id="sweetBadge">—</span>
+        </div>
+        <div class="viz-canvas-wrap">
+          <canvas id="sweetCanvas" height="360"></canvas>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#0891b2"></div>DoF grows (stop down)</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#dc2626"></div>Diffraction degrades</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#1a6aff;width:2px;height:14px;border-radius:0"></div>Current aperture</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#dc2626;width:2px;height:14px;border-radius:0"></div>Diffraction limit</div>
+        </div>
+      </div>
+
+    </div><!-- /right -->
+  </div>
+</div>
+
+<script>
+// ─── Sensor database ─────────────────────────────────────────────────────────
+const SENSORS = {
+  hassx2d2:    { label:'Hasselblad X2D II',       w:43.8, h:32.9, cols:11656, rows:8742  },
+  hassx1d2:    { label:'Hasselblad X1D II',        w:43.8, h:32.9, cols: 8272, rows:6200  },
+  gfx100s:     { label:'Fujifilm GFX 100S',        w:43.8, h:32.9, cols:11648, rows:8736  },
+  gfx100ii:    { label:'Fujifilm GFX 100 II',      w:43.8, h:32.9, cols:11648, rows:8736  },
+  gfx50sii:    { label:'Fujifilm GFX 50S II',      w:43.8, h:32.9, cols: 8256, rows:6192  },
+  sonya7rv:    { label:'Sony A7R V',               w:35.9, h:23.9, cols: 9504, rows:6336  },
+  sonya7iv:    { label:'Sony A7 IV',               w:35.9, h:23.9, cols: 7008, rows:4672  },
+  nikz8:       { label:'Nikon Z8 / Z9',            w:35.9, h:23.9, cols: 8256, rows:5504  },
+  nikzf:       { label:'Nikon Zf / Z6 III',        w:35.9, h:23.9, cols: 6048, rows:4024  },
+  canr5ii:     { label:'Canon EOS R5 II',          w:36.0, h:24.0, cols: 8192, rows:5464  },
+  canr6ii:     { label:'Canon EOS R6 II',          w:35.9, h:23.9, cols: 6000, rows:4000  },
+  leicam11:    { label:'Leica M11',                w:36.0, h:24.0, cols: 9528, rows:6328  },
+  fujixt5:     { label:'Fujifilm X-T5 / X100VI',  w:23.5, h:15.6, cols: 7728, rows:5152  },
+  fujixt4:     { label:'Fujifilm X-T4 / X-T3',    w:23.5, h:15.6, cols: 6240, rows:4160  },
+  fujixt30:    { label:'Fujifilm X-T30 II',        w:23.5, h:15.6, cols: 6240, rows:4160  },
+  sonya6700:   { label:'Sony A6700',               w:23.5, h:15.6, cols: 6192, rows:4128  },
+  nikzfc:      { label:'Nikon Zfc / Z50',          w:23.5, h:15.7, cols: 5568, rows:3712  },
+  canr50:      { label:'Canon EOS R50',            w:22.3, h:14.9, cols: 6000, rows:4000  },
+  canr7:       { label:'Canon EOS R7',             w:22.3, h:14.9, cols: 6960, rows:4640  },
+  omds5ii:     { label:'OM System OM-5',            w:17.3, h:13.0, cols: 5184, rows:3888  },
+  panag9ii:    { label:'Panasonic G9 II',          w:17.3, h:13.0, cols: 5776, rows:4336  },
+  sonyrx100vii:{ label:'Sony RX100 VII',           w:13.2, h: 8.8, cols: 5472, rows:3648  },
+  sonyzv1ii:   { label:'Sony ZV-1 II',             w:13.2, h: 8.8, cols: 5472, rows:3648  },
+};
+
+const LAMBDA = 0.00055; // mm — green light 550 nm
+
+// ─── Physics ─────────────────────────────────────────────────────────────────
+
+// Airy disk diameter (mm) at f-number N
+function airyDisk(N) { return 2.44 * LAMBDA * N; }
+
+// Diffraction-limited aperture: largest N where Airy ≤ CoC
+function diffrLimit(c_mm) { return c_mm / (2.44 * LAMBDA); }
+
+// DoF calculation
+function calcDoF(f_mm, N, d_m, c_mm) {
+  const d   = d_m * 1000;
+  const H   = (f_mm * f_mm) / (N * c_mm) + f_mm;
+  const H_m = H / 1000;
+  let near_m, far_m;
+  if (d >= H) {
+    near_m = H_m / 2;
+    far_m  = Infinity;
+  } else {
+    near_m = (d * (H - f_mm)) / (H + d - 2 * f_mm) / 1000;
+    const rawFar = (d * (H - f_mm)) / (H - d);
+    far_m = rawFar > 0 ? rawFar / 1000 : Infinity;
+  }
+  return { near_m, far_m, dof_m: isFinite(far_m) ? far_m - near_m : Infinity, hyper_m: H_m };
+}
+
+// Effective blur at aperture N: combined DoF CoC and Airy in quadrature
+// Used for the sweet-spot chart — represents total blur degradation
+function effectiveBlur(f_mm, N, d_m, c_mm) {
+  const airy = airyDisk(N);
+  // defocus CoC at focus distance (=c_mm at near/far limit, 0 at focus — use normalised metric)
+  // For chart: just return airy disk relative to c_mm as the sharpness degradation factor
+  return airy / c_mm; // 1.0 = diffraction = CoC, <1 = sharp, >1 = diffraction-blurred
+}
+
+// ─── Aperture stops ──────────────────────────────────────────────────────────
+const sliderStops = [
+  1.0, 1.1, 1.2,
+  1.4, 1.6, 1.8,
+  2.0, 2.2, 2.5,
+  2.8, 3.2, 3.5,
+  4.0, 4.5, 5.0,
+  5.6, 6.3, 7.1,
+  8.0, 9.0, 10,
+  11,  13,  14,
+  16,  18,  20,
+  22
+];
+
+// Build CoC multiplier tick labels — slider is min=10 max=100 (÷10 = 1×–10×)
+(function buildCocTicks() {
+  const container = document.getElementById('cocMultTicks');
+  if (!container) return;
+  const min = 10, max = 100;
+  const ticks = [
+    { val: 20,  label: '2×' },
+    { val: 50,  label: '5×' },
+    { val: 100, label: '10×' },
+  ];
+  ticks.forEach(({ val, label }, i) => {
+    const pct = (val - min) / (max - min) * 100;
+    const span = document.createElement('span');
+    span.textContent = label;
+    span.style.left = pct + '%';
+    // Edge corrections: last label right-anchored, others centred
+    if (i === ticks.length - 1) span.style.transform = 'translateX(-100%)';
+    else span.style.transform = 'translateX(-50%)';
+    container.appendChild(span);
+  });
+})();
+(function buildApertureTicks() {
+  const container = document.getElementById('apertureTicks');
+  if (!container) return;
+  const total = sliderStops.length - 1; // 36 steps
+  // Every other full stop — still clearly readable, no bunching
+  const fullStops = new Set([1.0, 2.0, 4.0, 8.0, 16, 22]);
+  const spans = [];
+  sliderStops.forEach((stop, idx) => {
+    if (!fullStops.has(stop)) return;
+    const pct = (idx / total) * 100;
+    const span = document.createElement('span');
+    span.textContent = 'f/' + stop;
+    span.style.left = pct + '%';
+    spans.push({ span, idx, total: sliderStops.length - 1 });
+    container.appendChild(span);
+  });
+  // Fix edge transforms after append
+  if (spans.length > 0) spans[0].span.style.transform = 'translateX(0)';
+  if (spans.length > 1) spans[spans.length-1].span.style.transform = 'translateX(-100%)';
+})();
+const chartStops = [
+  1.0, 1.1, 1.2,
+  1.4, 1.6, 1.8,
+  2.0, 2.2, 2.5,
+  2.8, 3.2, 3.5,
+  4.0, 4.5, 5.0,
+  5.6, 6.3, 7.1,
+  8.0, 9.0, 10,
+  11,  13,  14,
+  16,  18,  20,
+  22
+];
+
+function sliderToDist(v) {
+  if (v >= 99) return Infinity;
+  return 0.3 * Math.pow(1000, v / 98);
+}
+
+// ─── Formatters ──────────────────────────────────────────────────────────────
+function fmtDist(m, units) {
+  if (!isFinite(m)) return '∞';
+  if (units === 'ft') {
+    const ft = m * 3.28084;
+    return ft >= 100 ? ft.toFixed(0)+'ft' : ft >= 10 ? ft.toFixed(1)+'ft' : ft.toFixed(2)+'ft';
+  }
+  if (m >= 100) return m.toFixed(0)+'m';
+  if (m >= 10)  return m.toFixed(1)+'m';
+  if (m >= 1)   return m.toFixed(2)+'m';
+  return (m*100).toFixed(1)+'cm';
+}
+function fmtVal(m, units) {
+  if (!isFinite(m)) return '∞';
+  const v = units === 'ft' ? m * 3.28084 : m;
+  if (!isFinite(v)) return '∞';
+  if (units === 'ft') return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  if (v >= 100) return v.toFixed(0);
+  if (v >= 10)  return v.toFixed(1);
+  if (v >= 1)   return v.toFixed(2);
+  return (v*100).toFixed(1);
+}
+function fmtUnit(m, units) {
+  if (!isFinite(m)) return '';
+  if (units === 'ft') return 'ft';
+  return m >= 1 ? 'm' : 'cm';
+}
+function nearestStop(N) {
+  let best = sliderStops[0], bestD = Infinity;
+  for (const s of sliderStops) { const d = Math.abs(s - N); if (d < bestD) { bestD = d; best = s; } }
+  return best;
+}
+
+// ─── Canvas: side-view DoF diagram ───────────────────────────────────────────
+const dofCanvas = document.getElementById('dofCanvas');
+const dofCtx    = dofCanvas.getContext('2d');
+
+function drawDof(result, focusDist_m, units) {
+  const W = dofCanvas.clientWidth || 580;
+  const H = 280;
+  dofCanvas.width  = W * window.devicePixelRatio;
+  dofCanvas.height = H * window.devicePixelRatio;
+  dofCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const { near_m, far_m, hyper_m } = result;
+  const usableW = W - 80; // px between left pad (40) and right pad (40)
+  const midY = H/2, bandH = 40;
+
+  // ── Coordinate system ──────────────────────────────────────────────────────
+  // Two modes:
+  // NORMAL: camera glyph at left, scene extends right from distance=0
+  // PANNED: DoF zone is thin enough that we zoom in and pan (camera off-canvas)
+  //
+  // Scale is chosen so DoF zone always spans at least MIN_DOF_FRAC of canvas.
+  // In panned mode, near_m sits at LEFT_FRAC from the left edge.
+
+  const MIN_DOF_FRAC = 0.25; // DoF must occupy ≥25% of usable width
+
+  let sc, leftEdge, panned;
+
+  if (!isFinite(far_m)) {
+    // Infinite DoF — use normal mode, scale around focus distance
+    const maxDist = Math.max(focusDist_m * 3.5, near_m * 6, isFinite(hyper_m) ? hyper_m * 0.8 : 0);
+    sc = usableW / maxDist;
+    leftEdge = 0;
+    panned = false;
+  } else {
+    const dof_m = far_m - near_m;
+    // Scale needed to show DoF at MIN_DOF_FRAC
+    const scNeeded = (usableW * MIN_DOF_FRAC) / dof_m;
+    // In normal mode (leftEdge=0), what scale would we use?
+    const scNormal = usableW / Math.max(far_m * 1.3, focusDist_m * 1.5);
+    // If normal scale already gives enough DoF separation, use it
+    if (scNormal >= scNeeded) {
+      sc = scNormal;
+      leftEdge = 0;
+      panned = false;
+    } else {
+      // Panned mode: zoom in so DoF is visible, pan so near_m is 15% from left
+      sc = scNeeded;
+      leftEdge = near_m - (0.15 * usableW) / sc;
+      panned = true;
+    }
+  }
+
+  const toX = dist => {
+    if (!isFinite(dist)) return W - 20;
+    return 40 + (dist - leftEdge) * sc;
+  };
+
+  const xNear  = toX(near_m);
+  const xFocus = toX(focusDist_m);
+  const xFar   = toX(far_m);
+  const xEnd   = W - 20;
+
+  // ── Background & ground line ───────────────────────────────────────────────
+  dofCtx.fillStyle='#f5f7fa'; dofCtx.fillRect(0,0,W,H);
+  dofCtx.strokeStyle='#dde1e9'; dofCtx.lineWidth=1;
+  dofCtx.beginPath(); dofCtx.moveTo(0,midY+bandH/2+20); dofCtx.lineTo(W,midY+bandH/2+20); dofCtx.stroke();
+
+  // ── Blur / sharp zones ─────────────────────────────────────────────────────
+  const xLeft = 40; // canvas left boundary for zones
+  if (xNear > xLeft) {
+    const g=dofCtx.createLinearGradient(xLeft,0,xNear,0);
+    g.addColorStop(0,'rgba(245,158,11,0.45)'); g.addColorStop(1,'rgba(245,158,11,0)');
+    dofCtx.fillStyle=g; dofCtx.fillRect(xLeft,midY-bandH/2,xNear-xLeft,bandH);
+  }
+  { const g=dofCtx.createLinearGradient(xNear,0,xFar,0);
+    g.addColorStop(0,'rgba(8,145,178,0.12)'); g.addColorStop(0.5,'rgba(8,145,178,0.28)'); g.addColorStop(1,'rgba(8,145,178,0.08)');
+    dofCtx.fillStyle=g; dofCtx.fillRect(xNear,midY-bandH/2,Math.max(xFar-xNear,3),bandH); }
+  if (isFinite(far_m) && xFar < xEnd) {
+    const g=dofCtx.createLinearGradient(xFar,0,xEnd,0);
+    g.addColorStop(0,'rgba(124,58,237,0)'); g.addColorStop(1,'rgba(124,58,237,0.35)');
+    dofCtx.fillStyle=g; dofCtx.fillRect(xFar,midY-bandH/2,xEnd-xFar,bandH);
+  } else if (!isFinite(far_m)) {
+    const x0=Math.max(xFar-20,xNear+4);
+    const g=dofCtx.createLinearGradient(x0,0,xEnd,0);
+    g.addColorStop(0,'rgba(124,58,237,0)'); g.addColorStop(1,'rgba(124,58,237,0.22)');
+    dofCtx.fillStyle=g; dofCtx.fillRect(x0,midY-bandH/2,xEnd-x0,bandH);
+  }
+
+  // ── Sharp zone border lines ────────────────────────────────────────────────
+  dofCtx.strokeStyle='rgba(8,145,178,0.7)'; dofCtx.lineWidth=1.5; dofCtx.setLineDash([]);
+  dofCtx.beginPath(); dofCtx.moveTo(xNear,midY-bandH/2-2); dofCtx.lineTo(xNear,midY+bandH/2+2); dofCtx.stroke();
+  if (isFinite(far_m)) {
+    dofCtx.beginPath(); dofCtx.moveTo(xFar,midY-bandH/2-2); dofCtx.lineTo(xFar,midY+bandH/2+2); dofCtx.stroke();
+  }
+
+  // ── Hyperfocal marker ──────────────────────────────────────────────────────
+  if (isFinite(hyper_m)) {
+    const xHyper = toX(hyper_m);
+    const withinView = hyper_m > leftEdge && hyper_m < leftEdge + usableW / sc * 0.96;
+    if (withinView && xHyper > 52 && xHyper < W - 30) {
+      dofCtx.strokeStyle='rgba(26,106,255,0.4)'; dofCtx.lineWidth=1; dofCtx.setLineDash([4,4]);
+      dofCtx.beginPath(); dofCtx.moveTo(xHyper,midY-bandH/2-12); dofCtx.lineTo(xHyper,midY+bandH/2+22); dofCtx.stroke();
+      dofCtx.setLineDash([]);
+      dofCtx.fillStyle='rgba(26,106,255,0.6)'; dofCtx.font='9px DM Mono,monospace';
+      dofCtx.textAlign='center'; dofCtx.fillText('H',xHyper,midY-bandH/2-16);
+    }
+  }
+
+  // ── Focus point ────────────────────────────────────────────────────────────
+  dofCtx.fillStyle='#1c2333'; dofCtx.beginPath(); dofCtx.arc(xFocus,midY,5,0,Math.PI*2); dofCtx.fill();
+  dofCtx.strokeStyle='rgba(28,35,51,0.18)'; dofCtx.lineWidth=6;
+  dofCtx.beginPath(); dofCtx.arc(xFocus,midY,8,0,Math.PI*2); dofCtx.stroke();
+
+  // ── Camera glyph or zoom indicator ────────────────────────────────────────
+  if (!panned) {
+    dofCtx.fillStyle='rgba(122,134,154,0.5)'; dofCtx.fillRect(6,midY-12,24,24);
+    dofCtx.fillStyle='#e8eaf0'; dofCtx.beginPath(); dofCtx.arc(18,midY,8,0,Math.PI*2); dofCtx.fill();
+    dofCtx.fillStyle='rgba(122,134,154,0.4)'; dofCtx.beginPath(); dofCtx.arc(18,midY,5,0,Math.PI*2); dofCtx.fill();
+  } else {
+    // Panned — draw a small ◀ arrow at left edge indicating camera is further left
+    dofCtx.fillStyle='rgba(122,134,154,0.5)'; dofCtx.font='10px DM Mono,monospace';
+    dofCtx.textAlign='left'; dofCtx.fillText('◀ cam', 6, midY+4);
+  }
+
+  // ── Distance labels ────────────────────────────────────────────────────────
+  dofCtx.font='9px DM Mono,monospace';
+
+  // Near — below band
+  if (xNear > 52 && xNear < W-20) {
+    dofCtx.fillStyle='rgba(8,145,178,0.9)'; dofCtx.textAlign='center';
+    dofCtx.fillText(fmtDist(near_m,units), xNear, midY+bandH/2+14);
+  }
+  // Focus — above band
+  const xFocusLabel = Math.min(Math.max(xFocus,30), W-30);
+  dofCtx.fillStyle='#1c2333'; dofCtx.textAlign='center';
+  dofCtx.fillText(fmtDist(focusDist_m,units), xFocusLabel, midY-bandH/2-10);
+  // Far — below band
+  if (isFinite(far_m) && xFar < W-20) {
+    dofCtx.fillStyle='rgba(124,58,237,0.8)'; dofCtx.textAlign='center';
+    dofCtx.fillText(fmtDist(far_m,units), xFar, midY+bandH/2+14);
+  } else if (!isFinite(far_m)) {
+    dofCtx.fillStyle='rgba(124,58,237,0.7)'; dofCtx.textAlign='right';
+    dofCtx.fillText('∞', W-8, midY);
+  }
+
+  // ── Scale bar ──────────────────────────────────────────────────────────────
+  const visibleRange = usableW / sc;
+  const sbM  = pickScaleBar(visibleRange);
+  const sbPx = sbM * sc;
+  const sbX  = 44, sbY = H-18;
+  dofCtx.strokeStyle='rgba(122,134,154,0.5)'; dofCtx.lineWidth=1; dofCtx.setLineDash([]);
+  dofCtx.beginPath();
+  dofCtx.moveTo(sbX,sbY); dofCtx.lineTo(sbX+sbPx,sbY);
+  dofCtx.moveTo(sbX,sbY-3); dofCtx.lineTo(sbX,sbY+3);
+  dofCtx.moveTo(sbX+sbPx,sbY-3); dofCtx.lineTo(sbX+sbPx,sbY+3); dofCtx.stroke();
+  dofCtx.fillStyle='rgba(122,134,154,0.8)'; dofCtx.font='9px DM Mono,monospace'; dofCtx.textAlign='center';
+  const sbLabel = units==='ft' ? (sbM*3.28084).toFixed(sbM<1?1:0)+' ft' : sbM>=1?sbM+'m':(sbM*100)+'cm';
+  dofCtx.fillText(sbLabel, sbX+sbPx/2, sbY+10);
+}
+
+// ─── Canvas: aperture sweet-spot chart ───────────────────────────────────────
+const sweetCanvas = document.getElementById('sweetCanvas');
+const sCtx = sweetCanvas.getContext('2d');
+
+function drawSweetSpot(f_mm, currentN, c_mm, focusDist_m) {
+  const W = sweetCanvas.clientWidth || 580;
+  const H = 360;
+  sweetCanvas.width  = W * window.devicePixelRatio;
+  sweetCanvas.height = H * window.devicePixelRatio;
+  sCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const PAD = { l:48, r:20, t:24, b:36 };
+  const cW = W - PAD.l - PAD.r;
+  const cH = H - PAD.t - PAD.b;
+
+  sCtx.fillStyle='#f5f7fa'; sCtx.fillRect(0,0,W,H);
+
+  const N_diff = diffrLimit(c_mm);
+
+  const data = chartStops.map(N => {
+    const airy   = airyDisk(N);
+    const dof    = calcDoF(f_mm, N, isFinite(focusDist_m)?focusDist_m:10000, c_mm);
+    const dofM   = isFinite(dof.dof_m) ? dof.dof_m : 9999;
+    const airyR  = airy / c_mm;
+    return { N, airyR, dofM };
+  });
+
+  const maxDofM  = Math.min(Math.max(...data.map(d=>d.dofM)), 500);
+  const maxAiryR = Math.max(...data.map(d=>d.airyR));
+
+  const minN = chartStops[0], maxN = chartStops[chartStops.length-1];
+  const toX  = N => PAD.l + (Math.log(N/minN) / Math.log(maxN/minN)) * cW;
+  const dofToY  = d => PAD.t + cH - Math.min(d/maxDofM, 1) * cH;
+  const airyToY = r => PAD.t + cH - Math.min(r/Math.max(maxAiryR,2), 1) * cH;
+
+  // Grid lines
+  sCtx.strokeStyle='rgba(221,225,233,0.9)'; sCtx.lineWidth=1;
+  for (let i=0; i<=4; i++) {
+    const y = PAD.t + (cH/4)*i;
+    sCtx.beginPath(); sCtx.moveTo(PAD.l,y); sCtx.lineTo(PAD.l+cW,y); sCtx.stroke();
+  }
+
+  // Diffraction zone overlay (right of N_diff): light red tint
+  if (N_diff < maxN) {
+    const xDiff = Math.max(toX(N_diff), PAD.l);
+    const g = sCtx.createLinearGradient(xDiff,0,PAD.l+cW,0);
+    g.addColorStop(0,'rgba(220,38,38,0)');
+    g.addColorStop(0.3,'rgba(220,38,38,0.05)');
+    g.addColorStop(1,'rgba(220,38,38,0.12)');
+    sCtx.fillStyle=g; sCtx.fillRect(xDiff,PAD.t,PAD.l+cW-xDiff,cH);
+  }
+
+  // DoF curve — teal/blue
+  sCtx.beginPath(); sCtx.strokeStyle='rgba(8,145,178,0.85)'; sCtx.lineWidth=2; sCtx.setLineDash([]);
+  data.forEach((d,i) => {
+    const x=toX(d.N), y=dofToY(d.dofM);
+    i===0 ? sCtx.moveTo(x,y) : sCtx.lineTo(x,y);
+  });
+  sCtx.stroke();
+
+  // Airy / diffraction curve — red, brighter past limit
+  sCtx.lineWidth=2;
+  data.forEach((d,i) => {
+    if (i===0) return;
+    const prev=data[i-1];
+    const overLimit = d.airyR > 1.0;
+    sCtx.beginPath();
+    sCtx.strokeStyle = overLimit ? 'rgba(220,38,38,0.9)' : 'rgba(220,38,38,0.35)';
+    sCtx.moveTo(toX(prev.N),airyToY(prev.airyR)); sCtx.lineTo(toX(d.N),airyToY(d.airyR));
+    sCtx.stroke();
+  });
+
+  // Diffraction limit line (red dashed)
+  if (N_diff <= maxN && N_diff >= minN) {
+    const xDiff = toX(N_diff);
+    sCtx.strokeStyle='rgba(220,38,38,0.65)'; sCtx.lineWidth=1.5; sCtx.setLineDash([4,4]);
+    sCtx.beginPath(); sCtx.moveTo(xDiff,PAD.t-4); sCtx.lineTo(xDiff,PAD.t+cH+4); sCtx.stroke();
+    sCtx.setLineDash([]);
+    sCtx.fillStyle='rgba(220,38,38,0.8)'; sCtx.font='9px DM Mono,monospace'; sCtx.textAlign='center';
+    sCtx.fillText('f/'+N_diff.toFixed(1), xDiff, PAD.t-7);
+  }
+
+  // Current aperture line (blue solid)
+  if (currentN >= minN && currentN <= maxN) {
+    const xCurr = toX(currentN);
+    sCtx.strokeStyle='rgba(26,106,255,0.75)'; sCtx.lineWidth=1.5; sCtx.setLineDash([]);
+    sCtx.beginPath(); sCtx.moveTo(xCurr,PAD.t); sCtx.lineTo(xCurr,PAD.t+cH); sCtx.stroke();
+    sCtx.fillStyle='rgba(26,106,255,0.8)'; sCtx.font='9px DM Mono,monospace'; sCtx.textAlign='center';
+    sCtx.fillText('f/'+currentN, xCurr, PAD.t-7);
+  }
+
+  // x-axis labels
+  sCtx.font='9px DM Mono,monospace'; sCtx.fillStyle='rgba(122,134,154,0.9)'; sCtx.textAlign='center';
+  [1,1.4,2,2.8,4,5.6,8,11,16,22,32].forEach(N => {
+    if (N < minN || N > maxN) return;
+    sCtx.fillText('f/'+N, toX(N), PAD.t+cH+14);
+  });
+
+  // y-axis label
+  sCtx.save(); sCtx.translate(12, PAD.t+cH/2); sCtx.rotate(-Math.PI/2);
+  sCtx.fillStyle='rgba(8,145,178,0.6)'; sCtx.textAlign='center'; sCtx.font='9px DM Mono,monospace';
+  sCtx.fillText('DoF depth →', 0, 0); sCtx.restore();
+
+  // Axis lines
+  sCtx.strokeStyle='rgba(221,225,233,1)'; sCtx.lineWidth=1; sCtx.setLineDash([]);
+  sCtx.beginPath(); sCtx.moveTo(PAD.l,PAD.t); sCtx.lineTo(PAD.l,PAD.t+cH); sCtx.lineTo(PAD.l+cW,PAD.t+cH); sCtx.stroke();
+}
+
+function pickScaleBar(maxDist) {
+  for (const c of [0.05,0.1,0.2,0.5,1,2,5,10,20,50,100,200,500,1000,2000])
+    if (maxDist/c < 6) return c;
+  return 1000;
+}
+
+// ─── Sensor helper ───────────────────────────────────────────────────────────
+function getCurrentSensor() {
+  const sel = document.getElementById('sensorPreset').value;
+  if (sel === 'custom') {
+    const w    = parseFloat(document.getElementById('custW').value)  || 23.5;
+    const h    = parseFloat(document.getElementById('custH').value)  || 15.6;
+    const cols = parseInt(document.getElementById('custCols').value) || 7728;
+    const rows = parseInt(document.getElementById('custRows').value) || 5152;
+    return { pitch_mm:w/cols, pitch_um:(w/cols)*1000, mp:(cols*rows)/1e6, label:'Custom', w, h, cols, rows };
+  }
+  const s = SENSORS[sel];
+  const pitch_mm = s.w / s.cols;
+  return { pitch_mm, pitch_um: pitch_mm*1000, mp:(s.cols*s.rows)/1e6, label:s.label, w:s.w, h:s.h, cols:s.cols, rows:s.rows };
+}
+
+// ─── Main update ─────────────────────────────────────────────────────────────
+function update() {
+  const sensor = getCurrentSensor();
+  const mult   = parseInt(document.getElementById('cocMult').value) / 10;
+  const c_mm   = sensor.pitch_mm * mult;
+  const c_um   = sensor.pitch_um * mult;
+
+  const f      = parseFloat(document.getElementById('focalLength').value) || 50;
+  const sv     = parseInt(document.getElementById('aperture').value);
+  const N      = sliderStops[sv];
+  const dv     = parseInt(document.getElementById('distance').value);
+  const d      = sliderToDist(dv);
+  const units  = document.getElementById('units').value;
+
+  // ── Diffraction ──
+  const N_diff   = diffrLimit(c_mm);
+  const airy_um  = airyDisk(N) * 1000;
+  const airyRatio = airy_um / c_um;
+  const diffOver  = N > N_diff;
+  const diffNear  = N > N_diff * 0.8;
+
+  // Aperture display colour
+  const apEl = document.getElementById('apertureDisplay');
+  apEl.textContent = 'f/' + N;
+  apEl.className   = 'val-inline' + (diffOver ? ' warn' : diffNear ? ' caution' : '');
+
+  const apRange = document.getElementById('aperture');
+  apRange.className = diffOver ? 'warn' : diffNear ? 'caution' : '';
+
+  // ── Distances ──
+  document.getElementById('multDisplay').textContent = mult.toFixed(1)+'×';
+  document.getElementById('distDisplay').textContent = isFinite(d) ? fmtDist(d,units) : '∞';
+
+  // ── Pixel strip ──
+  document.getElementById('pxSensorSize').textContent = sensor.w.toFixed(1)+'×'+sensor.h.toFixed(1)+' mm';
+  document.getElementById('pxPitch').textContent      = sensor.pitch_um.toFixed(2)+' µm';
+  document.getElementById('pxMP').textContent         = sensor.mp.toFixed(1)+' MP';
+
+  // ── CoC breakdown ──
+  document.getElementById('cocBreakdown').innerHTML =
+    `Pixel pitch: <strong>${sensor.pitch_um.toFixed(2)} µm</strong> × ` +
+    `multiplier: <strong>${mult.toFixed(1)}</strong> = ` +
+    `CoC <strong>${c_um.toFixed(2)} µm</strong>` +
+    `<div class="formula">CoC = sensor_width ÷ pixel_columns × multiplier</div>`;
+
+  document.getElementById('cocBadge').textContent = 'CoC: '+c_um.toFixed(2)+' µm';
+
+  // ── DoF calc ──
+  const focusDist = isFinite(d) ? d : 10000;
+  const res = calcDoF(f, N, focusDist, c_mm);
+  const { near_m, far_m, dof_m, hyper_m } = res;
+
+  // ── Result cards ──
+  document.getElementById('nearVal').textContent = fmtVal(near_m,units);
+  document.getElementById('nearSub').textContent = fmtUnit(near_m,units)+' from camera';
+
+  document.getElementById('farVal').textContent = isFinite(far_m) ? fmtVal(far_m,units) : '∞';
+  document.getElementById('farSub').textContent = isFinite(far_m) ? fmtUnit(far_m,units)+' from camera' : 'to infinity';
+
+  document.getElementById('dofVal').textContent = isFinite(dof_m) ? fmtVal(dof_m,units) : '∞';
+  document.getElementById('dofSub').textContent = isFinite(dof_m) ? fmtUnit(dof_m,units)+' total' : 'infinite DoF';
+
+  document.getElementById('hyperVal').textContent = fmtVal(hyper_m,units);
+  document.getElementById('hyperSub').textContent = fmtUnit(hyper_m,units);
+
+  // Diffraction limit card
+  const diffrCard = document.getElementById('diffrCard');
+  const diffrValEl = document.getElementById('diffrVal');
+  const diffrSubEl = document.getElementById('diffrSub');
+  diffrValEl.textContent = 'f/'+N_diff.toFixed(1);
+  diffrSubEl.textContent = 'Airy = CoC at this f-stop';
+  diffrValEl.className   = 'result-value';
+  diffrCard.className    = 'result-card diffr' + (diffOver ? ' warn' : '');
+
+  // Airy disk card
+  const airyValEl = document.getElementById('airyVal');
+  const airySubEl = document.getElementById('airySub');
+  airyValEl.textContent = airy_um.toFixed(2)+' µm';
+  airySubEl.textContent = (airyRatio >= 1 ? '▲ ' : '') + (airyRatio*100).toFixed(0)+'% of CoC';
+  airyValEl.className   = 'result-value' + (diffOver ? ' warn' : diffNear ? ' caution' : ' ok');
+  document.getElementById('airyCard').className = 'result-card diffr' + (diffOver ? '' : diffNear ? ' caution' : ' ok');
+
+  // ── Diffraction banner ──
+  const banner = document.getElementById('diffrBanner');
+  if (diffOver) {
+    banner.className = 'diffr-banner warn';
+    banner.innerHTML = `<strong>⚠ Diffraction active at f/${N}</strong> — Airy disk (${airy_um.toFixed(1)} µm) exceeds CoC (${c_um.toFixed(1)} µm). `+
+      `Diffraction limit for this CoC: <strong>f/${N_diff.toFixed(1)}</strong>.`;
+  } else if (diffNear) {
+    banner.className = 'diffr-banner caution';
+    banner.innerHTML = `<strong>Approaching diffraction limit</strong> — Airy disk is ${(airyRatio*100).toFixed(0)}% of CoC at this aperture. `+
+      `Limit: f/${N_diff.toFixed(1)}.`;
+  } else {
+    banner.className = 'diffr-banner';
+  }
+
+  // ── Sweet badge ──
+  document.getElementById('sweetBadge').textContent = `Diffraction limit: f/${N_diff.toFixed(1)}`;
+
+  // ── Hyperfocal panel ──
+  const hDist = fmtDist(hyper_m,units);
+  const halfH = fmtDist(hyper_m/2,units);
+  const atInf = isFinite(d) && d >= hyper_m;
+  document.getElementById('hyperfocalInfo').innerHTML =
+    `Hyperfocal: <strong>${hDist}</strong><br>`+
+    `Focused at ${hDist} → sharp from <strong>${halfH}</strong> to ∞.<br>`+
+    (atInf
+      ? `<br>✓ Focus ≥ hyperfocal — <strong>DoF extends to infinity.</strong>`
+      : `Current focus is closer than hyperfocal (${hDist}).`);
+
+  // ── Draw canvases ──
+  drawDof(res, focusDist, units);
+  drawSweetSpot(f, N, c_mm, focusDist);
+}
+
+// ─── Events ──────────────────────────────────────────────────────────────────
+document.getElementById('sensorPreset').addEventListener('change', function() {
+  document.getElementById('customFields').style.display = this.value==='custom' ? 'block' : 'none';
+  update();
+});
+
+['focalLength','aperture','distance','cocMult','units',
+ 'custW','custH','custCols','custRows'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) { el.addEventListener('input', update); el.addEventListener('change', update); }
+});
+
+window.addEventListener('resize', update);
+
+// ── Help popups — fixed viewport positioning ────────────────────────────────
+function wireHelp(btnId, popupId, closeId) {
+  const btn   = document.getElementById(btnId);
+  const popup = document.getElementById(popupId);
+  const close = document.getElementById(closeId);
+  if (!btn || !popup) return;
+
+  function position() {
+    const r = btn.getBoundingClientRect();
+    const popW = 320, margin = 8;
+    // Prefer opening to the right of the button; flip left if it would clip viewport
+    let left = r.right + margin;
+    if (left + popW > window.innerWidth - margin) left = r.left - popW - margin;
+    left = Math.max(margin, left);
+    // Open below the button; flip above if not enough space below
+    let top = r.bottom + margin;
+    const maxH = Math.min(window.innerHeight * 0.8, 520);
+    if (top + maxH > window.innerHeight - margin) top = Math.max(margin, r.top - maxH - margin);
+    popup.style.left    = left + 'px';
+    popup.style.top     = top  + 'px';
+    popup.style.maxHeight = maxH + 'px';
+  }
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = popup.classList.contains('open');
+    // Close all popups first
+    document.querySelectorAll('.help-popup.open').forEach(p => p.classList.remove('open'));
+    if (!isOpen) { position(); popup.classList.add('open'); }
+  });
+  if (close) close.addEventListener('click', () => popup.classList.remove('open'));
+  document.addEventListener('click', e => {
+    if (!popup.contains(e.target) && e.target !== btn) popup.classList.remove('open');
+  });
+}
+
+update();
+</script>
+
+<!-- ── Help popups (fixed, appended to body) ── -->
+
+<div class="help-popup" id="cocHelpPopup">
+  <button class="help-close" id="cocHelpClose">✕</button>
+  <div class="help-title">Circle of Confusion Multiplier</div>
+  <div class="help-body">
+    <p>The CoC (circle of confusion) is the maximum blur diameter that still appears acceptably sharp. This tool derives it from your sensor's pixel pitch rather than the old print-based approximation.</p>
+    <p><strong>1× (pixel-level)</strong> — Airy disk = 1 pixel. Sharpness judged at 100% zoom / maximum resolution. Very demanding; only achievable at wide apertures on high-MP sensors.</p>
+    <p><strong>2× (default)</strong> — Accounts for Bayer/X-Trans demosaic interpolation smearing across ~2 pixels. A good standard for critical work and large prints.</p>
+    <p><strong>5–6×</strong> — Equivalent to viewing a print at normal distance. Matches what most DoF apps show for APS-C sensors.</p>
+    <p><strong>~10× (classic)</strong> — Traditional print-based standard (sensor diagonal ÷ 1500). Matches legacy DoF tables and apps like Photo Pills or Classic DoF. Hyperfocal distances will be much shorter.</p>
+    <p class="help-note">Increasing the multiplier makes the CoC larger → shallower hyperfocal, wider DoF, higher diffraction limit.</p>
+  </div>
+</div>
+
+<div class="help-popup" id="lensHelpPopup">
+  <button class="help-close" id="lensHelpClose">✕</button>
+  <div class="help-title">Lens &amp; Focus</div>
+  <div class="help-body">
+    <p><strong>Focal length</strong> — the lens focal length in mm. Longer focal lengths compress depth of field; wider lenses have much greater DoF at the same aperture and distance.</p>
+    <p><strong>Aperture</strong> — the f-number. Stopping down (larger f-number) increases DoF but also increases diffraction softening. The slider turns orange/red as you approach or exceed the diffraction limit for your current CoC.</p>
+    <p><strong>Focus distance</strong> — where the lens is focused. DoF is asymmetric: there is always more depth behind the focus point than in front, increasingly so at longer distances.</p>
+    <p class="help-note">DoF scales with the square of focal length and linearly with aperture and CoC. Halving the focal length quadruples the DoF.</p>
+  </div>
+</div>
+
+<div class="help-popup" id="hyperHelpPopup">
+  <button class="help-close" id="hyperHelpClose">✕</button>
+  <div class="help-title">Hyperfocal Distance</div>
+  <div class="help-body">
+    <p>The hyperfocal distance (H) is the closest focusing distance at which everything from H/2 to infinity is acceptably sharp. It is the most DoF you can get from a given lens, aperture, and CoC.</p>
+    <p><strong>Formula:</strong> H = f² / (N × CoC) where f is focal length and N is f-number.</p>
+    <p><strong>Practical use:</strong> For landscape and street photography, focusing at the hyperfocal distance maximises the range of sharp subject matter. At pixel-accurate CoC (2×) the hyperfocal is much further than traditional tables suggest — high-MP cameras demand more precise focus.</p>
+    <p><strong>H/2 rule:</strong> When focused at the hyperfocal, the near limit of sharpness is exactly half the hyperfocal distance.</p>
+    <p class="help-note">The hyperfocal distance shown here uses your current CoC setting. Increasing the multiplier shortens the hyperfocal significantly.</p>
+  </div>
+</div>
+
+<div class="help-popup" id="dofVizHelpPopup">
+  <button class="help-close" id="dofVizHelpClose">✕</button>
+  <div class="help-title">Field of Sharpness — Side View</div>
+  <div class="help-body">
+    <p>A scaled top-down view of the scene, showing the camera at left and the depth zones extending to the right.</p>
+    <p><strong>Amber zone</strong> — nearer than the DoF near limit: out of focus in front of the subject.</p>
+    <p><strong>Teal zone</strong> — the acceptably sharp region between the near and far DoF limits. The width of this zone is the total depth of field.</p>
+    <p><strong>Purple zone</strong> — beyond the DoF far limit: out of focus behind the subject.</p>
+    <p><strong>Focus point (●)</strong> — where the lens is actually focused. Maximum sharpness is here; DoF extends symmetrically only at close distances, and asymmetrically (more behind) at longer ones.</p>
+    <p><strong>H marker</strong> — the hyperfocal distance, shown when it falls within the visible scene range.</p>
+    <p class="help-note">When DoF is very thin the diagram zooms in automatically and shows a ◀ cam indicator — the camera is off-canvas to the left.</p>
+  </div>
+</div>
+
+<div class="help-popup" id="sweetHelpPopup">
+  <button class="help-close" id="sweetHelpClose">✕</button>
+  <div class="help-title">Aperture vs Effective Sharpness</div>
+  <div class="help-body">
+    <p>Shows how two competing factors change as you stop down, helping you find the aperture sweet spot for your sensor and current focus distance.</p>
+    <p><strong>Teal curve (DoF)</strong> — depth of field grows as you stop down. The curve rises steeply at wide apertures and flattens as you approach the hyperfocal distance.</p>
+    <p><strong>Red curve (Diffraction)</strong> — the Airy disk diameter grows linearly with f-number. Once it exceeds your CoC (the red dashed line), diffraction softening reduces resolution faster than stopping down gains DoF.</p>
+    <p><strong>Blue line</strong> — your current aperture. Move the aperture slider and watch it shift.</p>
+    <p><strong>Red dashed line</strong> — the diffraction limit: Airy disk = CoC. The red background zone to its right is the diffraction-degraded region.</p>
+    <p class="help-note">The sweet spot is just before the red dashed line — maximum DoF with minimum diffraction penalty. Adjusting the CoC multiplier moves the diffraction limit left or right.</p>
+  </div>
+</div>
+
+
+<script>
+wireHelp('cocHelpBtn',    'cocHelpPopup',    'cocHelpClose');
+wireHelp('lensHelpBtn',   'lensHelpPopup',   'lensHelpClose');
+wireHelp('hyperHelpBtn',  'hyperHelpPopup',  'hyperHelpClose');
+wireHelp('dofVizHelpBtn', 'dofVizHelpPopup', 'dofVizHelpClose');
+wireHelp('sweetHelpBtn',  'sweetHelpPopup',  'sweetHelpClose');
+</script>
+</body>
+</html>
