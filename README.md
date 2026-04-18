@@ -1,4 +1,4 @@
-Here's a few tools, lua scripts and lensfun files for photographers who dabble!
+Here's a few lens tools and lensfun files
 
 DOF calculator - a visual DOF Calculator with help embedded in various elements.
 
