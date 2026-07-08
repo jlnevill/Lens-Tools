@@ -10,4 +10,9 @@ Two xml files, one for new XCD lenses and the other for the Sigma 17-40 f1.8 on 
 
 A Blur Comparison Tool, A multi-lens blur disc and depth-of-field comparison tool that plots sensor-normalised blur against subject distance for any combination of focal length, aperture, and sensor format.
 
+The XCD Lens-FOV Comparator tool models the field of view of every current Hasselblad XCD lens on the X2D / X2D II sensor,
+and lets you compare, overlay, and preview framing across the full lineup — including zooms at any
+point in their range, six sensor crop ratios, and two synthetic visualisations plus a real-photo overlay
+mode.
+
 All are offered "as-is", I hope you find them useful!
