@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X2D II Lens Crop Calculator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px; background: #f5f5f5; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1a1a1a; }
+  .x2dii-app { max-width: 520px; margin: 0 auto; }
+  .x2dii-header { text-align: center; margin-bottom: 20px; }
+  .x2dii-header h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px 0; }
+  .x2dii-header p { font-size: 13px; color: #888; margin: 0; }
+  .x2dii-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 14px; padding: 18px; margin-bottom: 12px; }
+  .x2dii-card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin: 0 0 14px 0; }
+  .x2dii-lens-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+  .x2dii-lens-field { flex: 1; }
+  .x2dii-lens-field label { display: block; font-size: 12px; font-weight: 500; color: #666; margin-bottom: 6px; }
+  .x2dii-lens-field select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; outline: none; cursor: pointer; }
+  .x2dii-lens-field select:focus { border-color: #c9a96e; box-shadow: 0 0 0 3px rgba(201,169,110,0.15); background: #fff; }
+  .x2dii-zoom-row { display: none; gap: 12px; margin-bottom: 12px; }
+  .x2dii-zoom-row.visible { display: flex; }
+  .x2dii-zoom-field { flex: 1; }
+  .x2dii-zoom-field label { display: block; font-size: 12px; font-weight: 500; color: #666; margin-bottom: 6px; }
+  .x2dii-zoom-field input[type="range"] { width: 100%; }
+  .x2dii-zoom-val { font-size: 13px; font-weight: 600; color: #333; text-align: right; }
+  .x2dii-lens-badge { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; color: #fff; margin-left: 6px; vertical-align: middle; }
+  .x2dii-lens-meta { font-size: 12px; color: #999; margin-top: 4px; }
+  .x2dii-error { background: #fff0f0; border: 1px solid #ffcccc; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; color: #cc3333; font-size: 13px; font-weight: 500; display: none; }
+  .x2dii-error.visible { display: block; }
+  .x2dii-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .x2dii-dim-box { background: #f6f6f6; border-radius: 10px; padding: 14px; text-align: center; }
+  .x2dii-dim-box.active { background: #1a1a1a; color: #fff; }
+  .x2dii-dim-box .value { font-size: 20px; font-weight: 700; }
+  .x2dii-dim-box .label { font-size: 11px; color: #999; margin-top: 4px; font-weight: 500; }
+  .x2dii-dim-box.active .label { color: #bbb; }
+  .x2dii-dim-box .sub { font-size: 11px; color: #bbb; margin-top: 2px; }
+  .x2dii-dim-box.active .sub { color: #888; }
+  .x2dii-note { text-align: center; font-size: 12px; color: #aaa; margin-top: 10px; }
+  .x2dii-mp { display: inline-block; background: #c9a96e; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 4px; }
+  .x2dii-sensor-wrap { display: flex; justify-content: center; margin-top: 16px; }
+  .x2dii-sensor { position: relative; background: #1a1a1a; border-radius: 6px; }
+  .x2dii-sensor-format { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #333; border-radius: 4px; }
+  .x2dii-sensor-inner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 3px; }
+  .x2dii-sensor-labels { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; color: #888; }
+  .x2dii-ratio-bar { margin-top: 14px; }
+  .x2dii-ratio-track { height: 28px; background: #f0f0f0; border-radius: 8px; position: relative; overflow: hidden; }
+  .x2dii-ratio-fill { height: 100%; border-radius: 8px; transition: width 0.3s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+  .x2dii-ratio-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #888; }
+  .x2dii-pixel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .x2dii-pixel-box { background: #f0f0f0; border-radius: 8px; padding: 10px; text-align: center; }
+  .x2dii-pixel-box .value { font-size: 14px; font-weight: 700; color: #333; }
+  .x2dii-pixel-box .label { font-size: 10px; color: #999; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .x2dii-native-note { text-align: center; font-size: 11px; color: #bbb; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="x2dii-app">
+  <div class="x2dii-header">
+    <h2>X2D II Lens Crop Calculator</h2>
+    <p>Compare XCD lenses — full sensor vs. effective crop</p>
+  </div>
+
+  <div class="x2dii-card">
+    <div class="x2dii-card-title">Lens Selection</div>
+    <div class="x2dii-error" id="errorBox">
+      Reference focal length must be shorter than selected focal length. The crop cannot be larger than the full format area.
+    </div>
+    <div class="x2dii-lens-row">
+      <div class="x2dii-lens-field">
+        <label>Reference (full frame of view)</label>
+        <select id="refLens"></select>
+        <div class="x2dii-lens-meta" id="refMeta"></div>
+      </div>
+      <div class="x2dii-lens-field">
+        <label>Selected (cropped)</label>
+        <select id="selLens"></select>
+        <div class="x2dii-lens-meta" id="selMeta"></div>
+      </div>
+    </div>
+    <div class="x2dii-zoom-row" id="refZoomRow">
+      <div class="x2dii-zoom-field">
+        <label>Reference focal length <span class="x2dii-zoom-val" id="refZoomVal">25mm</span></label>
+        <input type="range" id="refZoomSlider" min="20" max="35" step="0.1">
+      </div>
+    </div>
+    <div class="x2dii-zoom-row" id="selZoomRow">
+      <div class="x2dii-zoom-field">
+        <label>Selected focal length <span class="x2dii-zoom-val" id="selZoomVal">38mm</span></label>
+        <input type="range" id="selZoomSlider" min="20" max="35" step="0.1">
+      </div>
+    </div>
+    <div class="x2dii-lens-row" style="margin-top:4px;">
+      <div class="x2dii-lens-field">
+        <label>Format Crop</label>
+        <select id="formatSelect"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="x2dii-card" id="resultsCard">
+    <div class="x2dii-card-title">Format Dimensions</div>
+    <div class="x2dii-dims">
+      <div class="x2dii-dim-box">
+        <div class="value" id="formatW">43.8</div>
+        <div class="label">Format Width (mm)</div>
+        <div class="sub" id="formatWPx">11,656 px</div>
+      </div>
+      <div class="x2dii-dim-box">
+        <div class="value" id="formatH">32.9</div>
+        <div class="label">Format Height (mm)</div>
+        <div class="sub" id="formatHPx">8,742 px</div>
+      </div>
+      <div class="x2dii-dim-box active">
+        <div class="value" id="cropW">28.8</div>
+        <div class="label">Crop Width (mm)</div>
+        <div class="sub" id="cropWPx">7,668 px</div>
+      </div>
+      <div class="x2dii-dim-box active">
+        <div class="value" id="cropH">21.6</div>
+        <div class="label">Crop Height (mm)</div>
+        <div class="sub" id="cropHPx">5,751 px</div>
+      </div>
+    </div>
+    <div class="x2dii-pixel-grid">
+      <div class="x2dii-pixel-box">
+        <div class="value" id="formatRes">101.9 MP</div>
+        <div class="label">Format Resolution</div>
+      </div>
+      <div class="x2dii-pixel-box">
+        <div class="value" id="cropRes">68.1 MP</div>
+        <div class="label">Crop Resolution</div>
+      </div>
+    </div>
+    <div class="x2dii-native-note" id="nativeNote">Native sensor: 43.8 × 32.9 mm · 101.9 MP</div>
+  </div>
+
+  <div class="x2dii-card" id="visualCard">
+    <div class="x2dii-card-title">Visual Crop</div>
+    <div class="x2dii-sensor-wrap">
+      <div class="x2dii-sensor" id="sensorOuter">
+        <div class="x2dii-sensor-format" id="sensorFormat">
+          <div class="x2dii-sensor-inner" id="sensorInner"></div>
+        </div>
+      </div>
+    </div>
+    <div class="x2dii-sensor-labels">
+      <span id="labelFormat">Format: 43.8 × 32.9 mm</span>
+      <span id="labelCrop">Crop: 28.8 × 21.6 mm</span>
+    </div>
+    <div class="x2dii-ratio-bar">
+      <div class="x2dii-ratio-track">
+        <div class="x2dii-ratio-fill" id="ratioFill" style="width: 65.8%; background: #f5a623;">65.8%</div>
+      </div>
+      <div class="x2dii-ratio-labels">
+        <span>Format area used</span>
+        <span id="ratioLabel">65.8% of format · 43.3% of native sensor</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const LENSES = [
+    {id:'20-35e', name:'XCD 3.2-4.5/20-35E', series:'E', fMin:20, fMax:35, ap:'f/3.2-4.5', filter:77, color:'#4dd8e6'},
+    {id:'35-100e', name:'XCD 2.8-4/35-100E', series:'E', fMin:36.0, fMax:97.0, ap:'f/2.8-4', filter:86, color:'#2fb8c4'},
+    {id:'25v', name:'XCD 2.5/25V', series:'V', fMin:25, fMax:25, ap:'f/2.5', filter:72, color:'#f5a623'},
+    {id:'38v', name:'XCD 2.5/38V', series:'V', fMin:38, fMax:38, ap:'f/2.5', filter:72, color:'#ffb454'},
+    {id:'55v', name:'XCD 2.5/55V', series:'V', fMin:55, fMax:55, ap:'f/2.5', filter:72, color:'#ff8a3d'},
+    {id:'90v', name:'XCD 2.5/90V', series:'V', fMin:90, fMax:90, ap:'f/2.5', filter:72, color:'#e0891f'},
+    {id:'28p', name:'XCD 4/28P', series:'P', fMin:28, fMax:28, ap:'f/4', filter:72, color:'#8aa0ff'},
+    {id:'45p', name:'XCD 4/45P', series:'P', fMin:46.2, fMax:46.2, ap:'f/4', filter:62, color:'#6b7fe0'},
+    {id:'75p', name:'XCD 3.4/75P', series:'P', fMin:75, fMax:75, ap:'f/3.4', filter:72, color:'#b39bff'},
+    {id:'21', name:'XCD 4/21', series:'O', fMin:21.8, fMax:21.8, ap:'f/4', filter:77, color:'#9aa4ad'},
+    {id:'30', name:'XCD 3.5/30', series:'O', fMin:31, fMax:31, ap:'f/3.5', filter:77, color:'#c2c86b'},
+    {id:'45', name:'XCD 3.5/45', series:'O', fMin:45, fMax:45, ap:'f/3.5', filter:67, color:'#6bcb8f'},
+    {id:'65', name:'XCD 2.8/65', series:'O', fMin:65, fMax:65, ap:'f/2.8', filter:67, color:'#58a9c9'},
+    {id:'80', name:'XCD 1.9/80', series:'O', fMin:80.5, fMax:80.5, ap:'f/1.9', filter:77, color:'#ff6f91'},
+    {id:'90', name:'XCD 3.2/90', series:'O', fMin:90, fMax:90, ap:'f/3.2', filter:67, color:'#d1a95c'},
+    {id:'120macro', name:'XCD 3.5/120 Macro', series:'O', fMin:120, fMax:120, ap:'f/3.5', filter:77, color:'#a68cd8'},
+    {id:'135', name:'XCD 2.8/135', series:'O', fMin:133, fMax:133, ap:'f/2.8', filter:77, color:'#d97a91'},
+    {id:'35-75', name:'XCD 3.5-4.5/35-75', series:'O', fMin:35.9, fMax:73.1, ap:'f/3.5-4.5', filter:77, color:'#7fae9e'},
+  ];
+
+  const SENSOR_W = 43.8;
+  const SENSOR_H = 32.9;
+  const FULL_W_PX = 11656;
+  const FULL_H_PX = 8742;
+  const SENSOR_RATIO = SENSOR_W / SENSOR_H;
+
+  const FORMATS = [
+    {id:'native', label:'4:3 Native', ratio: SENSOR_RATIO},
+    {id:'32', label:'3:2 Classic', ratio: 3/2},
+    {id:'xpan', label:'XPan 65:24', ratio: 65/24},
+    {id:'square', label:'1:1 Square', ratio: 1/1},
+    {id:'54', label:'5:4', ratio: 5/4},
+    {id:'169', label:'16:9', ratio: 16/9},
+  ];
+
+  function populateSelect(id, selectedId) {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    LENSES.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = l.name;
+      if (l.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function populateFormats() {
+    const sel = document.getElementById('formatSelect');
+    sel.innerHTML = '';
+    FORMATS.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = f.label;
+      if (f.id === 'native') opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function getLens(id) { return LENSES.find(l => l.id === id); }
+  function isZoom(lens) { return lens.fMin !== lens.fMax; }
+
+  function getFocal(lensId, sliderId) {
+    const lens = getLens(lensId);
+    if (!isZoom(lens)) return lens.fMin;
+    return parseFloat(document.getElementById(sliderId).value);
+  }
+
+  function getFormatDims(formatId) {
+    const fmt = FORMATS.find(f => f.id === formatId);
+    const r = fmt.ratio;
+    if (r >= SENSOR_RATIO) {
+      return { w: SENSOR_W, h: SENSOR_W / r, label: fmt.label };
+    } else {
+      return { w: SENSOR_H * r, h: SENSOR_H, label: fmt.label };
+    }
+  }
+
+  function updateZoomUI(lensId, rowId, sliderId, valId) {
+    const lens = getLens(lensId);
+    const row = document.getElementById(rowId);
+    const slider = document.getElementById(sliderId);
+    const val = document.getElementById(valId);
+    if (isZoom(lens)) {
+      row.classList.add('visible');
+      slider.min = lens.fMin;
+      slider.max = lens.fMax;
+      if (parseFloat(slider.value) < lens.fMin || parseFloat(slider.value) > lens.fMax) {
+        slider.value = lens.fMin;
+      }
+      val.textContent = parseFloat(slider.value).toFixed(1) + 'mm';
+    } else {
+      row.classList.remove('visible');
+    }
+  }
+
+  function updateMeta(lensId, metaId) {
+    const lens = getLens(lensId);
+    const meta = document.getElementById(metaId);
+    meta.innerHTML = lens.ap + ' · Ø' + lens.filter + 'mm <span class="x2dii-lens-badge" style="background:' + lens.color + '">' + lens.series + '</span>';
+  }
+
+  function fmtPx(n) {
+    return Math.round(n).toLocaleString();
+  }
+
+  function calc() {
+    const refId = document.getElementById('refLens').value;
+    const selId = document.getElementById('selLens').value;
+    const formatId = document.getElementById('formatSelect').value;
+    const refLens = getLens(refId);
+    const selLens = getLens(selId);
+    const format = getFormatDims(formatId);
+
+    updateZoomUI(refId, 'refZoomRow', 'refZoomSlider', 'refZoomVal');
+    updateZoomUI(selId, 'selZoomRow', 'selZoomSlider', 'selZoomVal');
+    updateMeta(refId, 'refMeta');
+    updateMeta(selId, 'selMeta');
+
+    const refF = getFocal(refId, 'refZoomSlider');
+    const selF = getFocal(selId, 'selZoomSlider');
+
+    const errorBox = document.getElementById('errorBox');
+    const resultsCard = document.getElementById('resultsCard');
+    const visualCard = document.getElementById('visualCard');
+
+    if (refF >= selF) {
+      errorBox.classList.add('visible');
+      resultsCard.style.opacity = '0.4';
+      visualCard.style.opacity = '0.4';
+      return;
+    } else {
+      errorBox.classList.remove('visible');
+      resultsCard.style.opacity = '1';
+      visualCard.style.opacity = '1';
+    }
+
+    const ratio = refF / selF;
+    const cropW = format.w * ratio;
+    const cropH = format.h * ratio;
+
+    const formatWPx = format.w * (FULL_W_PX / SENSOR_W);
+    const formatHPx = format.h * (FULL_H_PX / SENSOR_H);
+    const cropWPx = cropW * (FULL_W_PX / SENSOR_W);
+    const cropHPx = cropH * (FULL_H_PX / SENSOR_H);
+    const formatMp = (formatWPx * formatHPx) / 1000000;
+    const cropMp = (cropWPx * cropHPx) / 1000000;
+    const pctFormat = ratio * ratio * 100;
+    const pctNative = (cropW * cropH) / (SENSOR_W * SENSOR_H) * 100;
+
+    document.getElementById('formatW').textContent = format.w.toFixed(1);
+    document.getElementById('formatH').textContent = format.h.toFixed(1);
+    document.getElementById('cropW').textContent = cropW.toFixed(1);
+    document.getElementById('cropH').textContent = cropH.toFixed(1);
+
+    document.getElementById('formatWPx').textContent = fmtPx(formatWPx) + ' px';
+    document.getElementById('formatHPx').textContent = fmtPx(formatHPx) + ' px';
+    document.getElementById('cropWPx').textContent = fmtPx(cropWPx) + ' px';
+    document.getElementById('cropHPx').textContent = fmtPx(cropHPx) + ' px';
+
+    document.getElementById('formatRes').textContent = formatMp.toFixed(1) + ' MP';
+    document.getElementById('cropRes').textContent = cropMp.toFixed(1) + ' MP';
+
+    document.getElementById('nativeNote').textContent = 'Native sensor: ' + SENSOR_W.toFixed(1) + ' × ' + SENSOR_H.toFixed(1) + ' mm · ' + ((FULL_W_PX * FULL_H_PX) / 1000000).toFixed(1) + ' MP';
+
+    document.getElementById('labelFormat').textContent = format.label + ': ' + format.w.toFixed(1) + ' × ' + format.h.toFixed(1) + ' mm';
+    document.getElementById('labelCrop').textContent = 'Crop: ' + cropW.toFixed(1) + ' × ' + cropH.toFixed(1) + ' mm';
+
+    // Visual: three layers — native sensor → format crop → lens crop
+    const maxW = 320;
+    const scale = maxW / SENSOR_W;
+    const outerW = Math.round(SENSOR_W * scale);
+    const outerH = Math.round(SENSOR_H * scale);
+    const formatWpx = Math.round(format.w * scale);
+    const formatHpx = Math.round(format.h * scale);
+    const innerW = Math.max(2, Math.round(cropW * scale));
+    const innerH = Math.max(2, Math.round(cropH * scale));
+
+    const outer = document.getElementById('sensorOuter');
+    const formatDiv = document.getElementById('sensorFormat');
+    const inner = document.getElementById('sensorInner');
+    outer.style.width = outerW + 'px';
+    outer.style.height = outerH + 'px';
+    formatDiv.style.width = formatWpx + 'px';
+    formatDiv.style.height = formatHpx + 'px';
+    inner.style.width = innerW + 'px';
+    inner.style.height = innerH + 'px';
+    inner.style.background = selLens.color;
+
+    const fill = document.getElementById('ratioFill');
+    fill.style.width = Math.min(100, pctFormat) + '%';
+    fill.style.background = selLens.color;
+    fill.textContent = pctFormat.toFixed(1) + '%';
+    document.getElementById('ratioLabel').textContent = pctFormat.toFixed(1) + '% of ' + format.label + ' · ' + pctNative.toFixed(1) + '% of native sensor · ' + ratio.toFixed(2) + '× crop';
+  }
+
+  populateSelect('refLens', '25v');
+  populateSelect('selLens', '38v');
+  populateFormats();
+
+  document.getElementById('refLens').addEventListener('change', calc);
+  document.getElementById('selLens').addEventListener('change', calc);
+  document.getElementById('formatSelect').addEventListener('change', calc);
+  document.getElementById('refZoomSlider').addEventListener('input', function() {
+    document.getElementById('refZoomVal').textContent = parseFloat(this.value).toFixed(1) + 'mm';
+    calc();
+  });
+  document.getElementById('selZoomSlider').addEventListener('input', function() {
+    document.getElementById('selZoomVal').textContent = parseFloat(this.value).toFixed(1) + 'mm';
+    calc();
+  });
+
+  calc();
+})();
+</script>
+
+</body>
+</html>
