@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X2D II Lens Crop Calculator</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px;background:#f5f5f5;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#1a1a1a}
+.app{max-width:520px;margin:0 auto}
+.hdr{text-align:center;margin-bottom:20px}
+.hdr h2{font-size:20px;font-weight:700;margin:0 0 4px 0}
+.hdr p{font-size:13px;color:#888;margin:0}
+.card{background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:18px;margin-bottom:12px}
+.ct{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#999;margin:0 0 14px 0}
+.row{display:flex;gap:12px;margin-bottom:12px;align-items:flex-end}
+.row:last-child{margin-bottom:0}
+.fld{flex:1}
+.fld label{display:block;font-size:12px;font-weight:500;color:#666;margin-bottom:6px}
+.fld select,.fld input[type="number"]{width:100%;padding:10px 12px;font-size:14px;border:1px solid #ddd;border-radius:10px;background:#fafafa;outline:none}
+.fld select:focus,.fld input[type="number"]:focus{border-color:#c9a96e;box-shadow:0 0 0 3px rgba(201,169,110,0.15);background:#fff}
+.zrow{display:none;gap:12px;margin-bottom:12px}
+.zrow.on{display:flex}
+.zfld{flex:1}
+.zfld label{display:block;font-size:12px;font-weight:500;color:#666;margin-bottom:6px}
+.zfld input[type="range"]{width:100%}
+.zv{font-size:13px;font-weight:600;color:#333;text-align:right}
+.badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;color:#fff;margin-left:6px;vertical-align:middle}
+.meta{font-size:12px;color:#999;margin-top:4px}
+.err{background:#fff0f0;border:1px solid #ffcccc;border-radius:10px;padding:12px 14px;margin-bottom:12px;color:#cc3333;font-size:13px;font-weight:500;display:none}
+.err.on{display:block}
+.dims{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box{background:#f6f6f6;border-radius:10px;padding:14px;text-align:center}
+.box.on{background:#1a1a1a;color:#fff}
+.box .v{font-size:20px;font-weight:700}
+.box .l{font-size:11px;color:#999;margin-top:4px;font-weight:500}
+.box.on .l{color:#bbb}
+.box .s{font-size:11px;color:#bbb;margin-top:2px}
+.box.on .s{color:#888}
+.note{text-align:center;font-size:12px;color:#aaa;margin-top:10px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.pbox{background:#f8f8f8;border-radius:10px;padding:12px;text-align:center}
+.pbox .v{font-size:16px;font-weight:700;color:#333}
+.pbox .l{font-size:10px;color:#999;margin-top:3px;text-transform:uppercase;letter-spacing:0.05em;font-weight:500}
+.pbox .s{font-size:11px;color:#aaa;margin-top:2px}
+.pst{text-align:center;margin-top:10px;font-size:13px;font-weight:600;color:#2a9d3a}
+.guide{text-align:center;margin-top:12px;padding:10px;background:#f0f0f0;border-radius:8px;font-size:13px;color:#555}
+.guide .gl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:3px}
+.guide .gm{font-size:15px;font-weight:700;color:#333}
+.guide .gd{font-size:11px;color:#999;margin-top:2px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sbox{background:#f0f0f0;border-radius:8px;padding:10px;text-align:center}
+.sbox .v{font-size:13px;font-weight:700;color:#333}
+.sbox .l{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:0.05em;font-weight:500}
+.sbox .s{font-size:11px;color:#aaa;margin-top:2px}
+.sbox.ok{background:#e8f5e9}
+.sbox.ok .v{color:#2a9d3a}
+.sbox.warn{background:#fff3e0}
+.sbox.warn .v{color:#e65100}
+.sbox.bad{background:#ffebee}
+.sbox.bad .v{color:#c62828}
+.sw{display:flex;justify-content:center;margin-top:16px}
+.sen{position:relative;background:#1a1a1a;border-radius:6px}
+.sen-f{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#333;border-radius:4px}
+.sen-i{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:3px}
+.slb{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:#888}
+.rb{margin-top:14px}
+.rt{height:28px;background:#f0f0f0;border-radius:8px;position:relative;overflow:hidden}
+.rf{height:100%;border-radius:8px;transition:width 0.3s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:11px;font-weight:700;color:#fff}
+.rl{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#888}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="hdr"><h2>X2D II Lens Crop Calculator</h2><p>Pick your mounted lens, target FOV, format, and DPI — see your crop and print size</p></div>
+
+<div class="card">
+<div class="ct">Lens Selection</div>
+<div class="err" id="errBox">Mounted lens must be equal or wider than the target FOV. You can only crop to a narrower view.</div>
+<div class="row">
+<div class="fld"><label>Mounted Lens (full sensor)</label><select id="refLens"></select><div class="meta" id="refMeta"></div></div>
+<div class="fld"><label>Target FOV (crop look you want)</label><select id="selLens"></select><div class="meta" id="selMeta"></div></div>
+</div>
+<div class="zrow" id="refZRow"><div class="zfld"><label>Mounted focal length <span class="zv" id="refZV">25mm</span></label><input type="range" id="refZS" min="20" max="35" step="0.1"></div></div>
+<div class="zrow" id="selZRow"><div class="zfld"><label>Target focal length <span class="zv" id="selZV">38mm</span></label><input type="range" id="selZS" min="20" max="35" step="0.1"></div></div>
+<div class="row" style="margin-top:4px">
+<div class="fld"><label>Format Crop</label><select id="fmtSel"></select></div>
+<div class="fld"><label>Print DPI</label><input type="number" id="dpiIn" value="300" min="72" max="1200" step="1"></div>
+</div>
+</div>
+
+<div class="card" id="resCard">
+<div class="ct">Format Dimensions</div>
+<div class="dims">
+<div class="box"><div class="v" id="fmtW">43.8</div><div class="l">Format Width (mm)</div><div class="s" id="fmtWPx">11,656 px</div></div>
+<div class="box"><div class="v" id="fmtH">32.9</div><div class="l">Format Height (mm)</div><div class="s" id="fmtHPx">8,742 px</div></div>
+<div class="box on"><div class="v" id="cropW">28.8</div><div class="l">Crop Width (mm)</div><div class="s" id="cropWPx">7,668 px</div></div>
+<div class="box on"><div class="v" id="cropH">21.6</div><div class="l">Crop Height (mm)</div><div class="s" id="cropHPx">5,751 px</div></div>
+</div>
+<div class="pgrid">
+<div class="pbox"><div class="v" id="fmtRes">101.9 MP</div><div class="l">Format Resolution</div></div>
+<div class="pbox"><div class="v" id="cropRes">68.1 MP</div><div class="l">Crop Resolution</div></div>
+</div>
+<div class="note" id="natNote">Native sensor: 43.8 × 32.9 mm · 101.9 MP</div>
+</div>
+
+<div class="card" id="printCard">
+<div class="ct">Print Size @ <span id="dpiLabel">300</span> DPI</div>
+<div class="dims">
+<div class="box on"><div class="v" id="printW">649</div><div class="l">Print Width (mm)</div><div class="s" id="printWIn">25.5 in</div></div>
+<div class="box on"><div class="v" id="printH">487</div><div class="l">Print Height (mm)</div><div class="s" id="printHIn">19.2 in</div></div>
+<div class="box"><div class="v" id="printDPI">300</div><div class="l">Target DPI</div><div class="s" id="printDiag">32.0 in diagonal</div></div>
+<div class="box"><div class="v" id="printArea">0.32</div><div class="l">Print Area (m²)</div><div class="s" id="printMpM2">213 MP/m²</div></div>
+</div>
+<div class="pgrid" style="margin-top:12px">
+<div class="guide" style="margin-top:0">
+<div class="gl">Closest ISO paper</div>
+<div class="gm" id="pgIsoMatch">~ A1 (841 × 594 mm)</div>
+<div class="gd" id="pgIsoDiff">Print is 1.17× larger than A1</div>
+</div>
+<div class="guide" style="margin-top:0">
+<div class="gl">Closest US paper</div>
+<div class="gm" id="pgUsMatch">~ 20×24 (610 × 508 mm)</div>
+<div class="gd" id="pgUsDiff">Print is 1.05× larger than 20×24</div>
+</div>
+</div>
+<div class="pst" id="pStatus">✓ Cropped to 68.1 MP — prints at 649 × 487 mm</div>
+</div>
+
+<div class="card" id="screenCard">
+<div class="ct">Screen Fit</div>
+<div class="sgrid" id="screenGrid"></div>
+</div>
+
+<div class="card" id="visCard">
+<div class="ct">Visual Crop</div>
+<div class="sw"><div class="sen" id="senOut"><div class="sen-f" id="senFmt"><div class="sen-i" id="senIn"></div></div></div></div>
+<div class="slb"><span id="lbFmt">Full sensor: 43.8 × 32.9 mm</span><span id="lbCrop">Crop to 28.8 × 21.6 mm</span></div>
+<div class="rb"><div class="rt"><div class="rf" id="ratFill" style="width:65.8%;background:#f5a623">65.8%</div></div><div class="rl"><span>Format area used</span><span id="ratLbl">65.8% of format · 43.3% of native sensor</span></div></div>
+</div>
+</div>
+
+<script>
+(function(){
+const LENSES=[
+{id:'20-35e',name:'XCD 3.2-4.5/20-35E',series:'E',fMin:20,fMax:35,ap:'f/3.2-4.5',filter:77,color:'#4dd8e6'},
+{id:'35-100e',name:'XCD 2.8-4/35-100E',series:'E',fMin:36,fMax:97,ap:'f/2.8-4',filter:86,color:'#2fb8c4'},
+{id:'25v',name:'XCD 2.5/25V',series:'V',fMin:25,fMax:25,ap:'f/2.5',filter:72,color:'#f5a623'},
+{id:'38v',name:'XCD 2.5/38V',series:'V',fMin:38,fMax:38,ap:'f/2.5',filter:72,color:'#ffb454'},
+{id:'55v',name:'XCD 2.5/55V',series:'V',fMin:55,fMax:55,ap:'f/2.5',filter:72,color:'#ff8a3d'},
+{id:'90v',name:'XCD 2.5/90V',series:'V',fMin:90,fMax:90,ap:'f/2.5',filter:72,color:'#e0891f'},
+{id:'28p',name:'XCD 4/28P',series:'P',fMin:28,fMax:28,ap:'f/4',filter:72,color:'#8aa0ff'},
+{id:'45p',name:'XCD 4/45P',series:'P',fMin:46.2,fMax:46.2,ap:'f/4',filter:62,color:'#6b7fe0'},
+{id:'75p',name:'XCD 3.4/75P',series:'P',fMin:75,fMax:75,ap:'f/3.4',filter:72,color:'#b39bff'},
+{id:'21',name:'XCD 4/21',series:'O',fMin:21.8,fMax:21.8,ap:'f/4',filter:77,color:'#9aa4ad'},
+{id:'30',name:'XCD 3.5/30',series:'O',fMin:31,fMax:31,ap:'f/3.5',filter:77,color:'#c2c86b'},
+{id:'45',name:'XCD 3.5/45',series:'O',fMin:45,fMax:45,ap:'f/3.5',filter:67,color:'#6bcb8f'},
+{id:'65',name:'XCD 2.8/65',series:'O',fMin:65,fMax:65,ap:'f/2.8',filter:67,color:'#58a9c9'},
+{id:'80',name:'XCD 1.9/80',series:'O',fMin:80.5,fMax:80.5,ap:'f/1.9',filter:77,color:'#ff6f91'},
+{id:'90',name:'XCD 3.2/90',series:'O',fMin:90,fMax:90,ap:'f/3.2',filter:67,color:'#d1a95c'},
+{id:'120macro',name:'XCD 3.5/120 Macro',series:'O',fMin:120,fMax:120,ap:'f/3.5',filter:77,color:'#a68cd8'},
+{id:'135',name:'XCD 2.8/135',series:'O',fMin:133,fMax:133,ap:'f/2.8',filter:77,color:'#d97a91'},
+{id:'35-75',name:'XCD 3.5-4.5/35-75',series:'O',fMin:35.9,fMax:73.1,ap:'f/3.5-4.5',filter:77,color:'#7fae9e'}
+];
+const SW=43.8,SH=32.9,FWPX=11656,FHPX=8742,SR=SW/SH;
+const FORMATS=[
+{id:'native',label:'4:3 Native',ratio:SR},
+{id:'32',label:'3:2 Classic',ratio:3/2},
+{id:'xpan',label:'XPan 65:24',ratio:65/24},
+{id:'square',label:'1:1 Square',ratio:1},
+{id:'54',label:'5:4',ratio:5/4},
+{id:'169',label:'16:9',ratio:16/9}
+];
+const PAPERS=[
+{label:'A0',w:1189,h:841,cat:'ISO'},
+{label:'A1',w:841,h:594,cat:'ISO'},
+{label:'A2',w:594,h:420,cat:'ISO'},
+{label:'A3',w:420,h:297,cat:'ISO'},
+{label:'A4',w:297,h:210,cat:'ISO'},
+{label:'A5',w:210,h:148,cat:'ISO'},
+{label:'Letter',w:279,h:216,cat:'US'},
+{label:'Legal',w:356,h:216,cat:'US'},
+{label:'Tabloid',w:432,h:279,cat:'US'},
+{label:'13×19',w:483,h:330,cat:'US'},
+{label:'17×22',w:559,h:432,cat:'US'},
+{label:'20×24',w:610,h:508,cat:'US'},
+{label:'24×30',w:762,h:610,cat:'US'},
+{label:'30×40',w:1016,h:762,cat:'US'},
+{label:'40×60',w:1524,h:1016,cat:'US'}
+];
+const SCREENS=[
+{label:'1080p HD',w:1920,h:1080},
+{label:'1440p QHD',w:2560,h:1440},
+{label:'4K UHD',w:3840,h:2160},
+{label:'5K',w:5120,h:2880},
+{label:'6K (ProDisplay)',w:6016,h:3384},
+{label:'8K UHD',w:7680,h:4320},
+{label:'MacBook Pro 16"',w:3456,h:2234},
+{label:'iMac 27" 5K',w:5120,h:2880},
+{label:'iPad Pro 12.9"',w:2732,h:2048},
+{label:'iPhone 15 Pro Max',w:2796,h:1290}
+];
+function popSel(id,sid){const s=document.getElementById(id);s.innerHTML='';LENSES.forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;if(l.id===sid)o.selected=true;s.appendChild(o)})}
+function popFmt(){const s=document.getElementById('fmtSel');s.innerHTML='';FORMATS.forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.label;if(f.id==='native')o.selected=true;s.appendChild(o)})}
+function getL(id){return LENSES.find(l=>l.id===id)}
+function isZ(l){return l.fMin!==l.fMax}
+function getF(lid,sid){const l=getL(lid);if(!isZ(l))return l.fMin;return parseFloat(document.getElementById(sid).value)}
+function getFmt(id){return FORMATS.find(f=>f.id===id)}
+function fmtDims(fid){const f=getFmt(fid);const r=f.ratio;if(r>=SR)return{w:SW,h:SW/r,lbl:f.label};return{w:SH*r,h:SH,lbl:f.label}}
+function updZ(lid,rid,sid,vid){const l=getL(lid);const r=document.getElementById(rid);const s=document.getElementById(sid);const v=document.getElementById(vid);if(isZ(l)){r.classList.add('on');s.min=l.fMin;s.max=l.fMax;if(parseFloat(s.value)<l.fMin||parseFloat(s.value)>l.fMax)s.value=l.fMin;v.textContent=parseFloat(s.value).toFixed(1)+'mm'}else{r.classList.remove('on')}}
+function updM(lid,mid){const l=getL(lid);const m=document.getElementById(mid);m.innerHTML=l.ap+' · Ø'+l.filter+'mm <span class="badge" style="background:'+l.color+'">'+l.series+'</span>'}
+function fPx(n){return Math.round(n).toLocaleString()}
+function fMm(n){return n<10?n.toFixed(1):Math.round(n).toString()}
+function closestPaper(pw,ph){let best=null;let bestScore=Infinity;PAPERS.forEach(p=>{const s1=pw/p.w;const s2=ph/p.h;const score=Math.abs(s1-1)+Math.abs(s2-1);if(score<bestScore){bestScore=score;best=p}});return best}
+function screenFit(cwp,chp){return SCREENS.map(sc=>{const sw=sc.w;const sh=sc.h;const fitW=cwp>=sw;const fitH=chp>=sh;const fit=fitW&&fitH;const scaleW=cwp/sw;const scaleH=chp/sh;const scale=Math.min(scaleW,scaleH);return{...sc,fit,scale,downscale:1/scale}})}
+function calc(){
+const rid=document.getElementById('refLens').value;
+const sid=document.getElementById('selLens').value;
+const fid=document.getElementById('fmtSel').value;
+const dpi=parseInt(document.getElementById('dpiIn').value)||300;
+const rl=getL(rid);const sl=getL(sid);const fm=fmtDims(fid);
+updZ(rid,'refZRow','refZS','refZV');updZ(sid,'selZRow','selZS','selZV');updM(rid,'refMeta');updM(sid,'selMeta');
+const rf=getF(rid,'refZS');const sf=getF(sid,'selZS');
+const eb=document.getElementById('errBox');const rc=document.getElementById('resCard');const vc=document.getElementById('visCard');const pc=document.getElementById('printCard');
+if(rf>sf){eb.classList.add('on');rc.style.opacity='0.4';vc.style.opacity='0.4';pc.style.opacity='0.4';return}
+else{eb.classList.remove('on');rc.style.opacity='1';vc.style.opacity='1';pc.style.opacity='1'}
+const ratio=rf/sf;
+const cw=fm.w*ratio;const ch=fm.h*ratio;
+const fwp=fm.w*(FWPX/SW);const fhp=fm.h*(FHPX/SH);
+const cwp=cw*(FWPX/SW);const chp=ch*(FHPX/SH);
+const fmp=(fwp*fhp)/1e6;const cmp=(cwp*chp)/1e6;
+const pctF=ratio*ratio*100;const pctN=(cw*ch)/(SW*SH)*100;
+document.getElementById('fmtW').textContent=fMm(fm.w);document.getElementById('fmtH').textContent=fMm(fm.h);
+document.getElementById('cropW').textContent=fMm(cw);document.getElementById('cropH').textContent=fMm(ch);
+document.getElementById('fmtWPx').textContent=fPx(fwp)+' px';document.getElementById('fmtHPx').textContent=fPx(fhp)+' px';
+document.getElementById('cropWPx').textContent=fPx(cwp)+' px';document.getElementById('cropHPx').textContent=fPx(chp)+' px';
+document.getElementById('fmtRes').textContent=fmp.toFixed(1)+' MP';document.getElementById('cropRes').textContent=cmp.toFixed(1)+' MP';
+document.getElementById('natNote').textContent='Native sensor: '+SW.toFixed(1)+' × '+SH.toFixed(1)+' mm · '+((FWPX*FHPX)/1e6).toFixed(1)+' MP';
+document.getElementById('lbFmt').textContent='Full sensor: '+fMm(fm.w)+' × '+fMm(fm.h)+' mm';
+document.getElementById('lbCrop').textContent='Crop to '+fMm(cw)+' × '+fMm(ch)+' mm';
+// Print size
+const pw=(cwp/dpi)*25.4;const ph=(chp/dpi)*25.4;
+const pwi=pw/25.4;const phi=ph/25.4;
+const diag=Math.sqrt(pw*pw+ph*ph);const diagi=diag/25.4;
+const area=(pw/1000)*(ph/1000);
+const mpM2=cmp/(area||1);
+document.getElementById('dpiLabel').textContent=dpi;
+document.getElementById('printW').textContent=Math.round(pw);
+document.getElementById('printH').textContent=Math.round(ph);
+document.getElementById('printWIn').textContent=pwi.toFixed(1)+' in';
+document.getElementById('printHIn').textContent=phi.toFixed(1)+' in';
+document.getElementById('printDPI').textContent=dpi;
+document.getElementById('printDiag').textContent=diagi.toFixed(1)+' in diagonal';
+document.getElementById('printArea').textContent=area.toFixed(2);
+document.getElementById('printMpM2').textContent=Math.round(mpM2)+' MP/m²';
+document.getElementById('pStatus').textContent='✓ Cropped to '+cmp.toFixed(1)+' MP — prints at '+Math.round(pw)+' × '+Math.round(ph)+' mm';
+function closestInCat(pw,ph,cat){let best=null;let bestScore=Infinity;PAPERS.forEach(p=>{if(p.cat!==cat)return;const s1=pw/p.w;const s2=ph/p.h;const score=Math.abs(s1-1)+Math.abs(s2-1);if(score<bestScore){bestScore=score;best=p}});return best}
+function paperText(pw,ph,paper){const scaleW=pw/paper.w;const scaleH=ph/paper.h;const scale=(scaleW+scaleH)/2;if(scale>1.5)return'Print is '+scale.toFixed(1)+'× larger than '+paper.label;else if(scale>1.05)return'Print is '+scale.toFixed(2)+'× larger than '+paper.label;else if(scale<0.7)return'Print is '+(1/scale).toFixed(1)+'× smaller than '+paper.label;else if(scale<0.95)return'Print is '+(1/scale).toFixed(2)+'× smaller than '+paper.label;else return'Print matches '+paper.label+' closely'}
+const isoPaper=closestInCat(pw,ph,'ISO');const usPaper=closestInCat(pw,ph,'US');
+document.getElementById('pgIsoMatch').textContent='~ '+isoPaper.label+' ('+isoPaper.w+' × '+isoPaper.h+' mm)';
+document.getElementById('pgIsoDiff').textContent=paperText(pw,ph,isoPaper);
+document.getElementById('pgUsMatch').textContent='~ '+usPaper.label+' ('+usPaper.w+' × '+usPaper.h+' mm)';
+document.getElementById('pgUsDiff').textContent=paperText(pw,ph,usPaper);
+// Screen fit
+const fits=screenFit(cwp,chp);
+const grid=document.getElementById('screenGrid');
+grid.innerHTML='';
+fits.forEach(sc=>{
+  const div=document.createElement('div');
+  div.className='sbox'+(sc.fit?' ok':(sc.scale>=0.5?' warn':' bad'));
+  div.innerHTML='<div class="v">'+sc.label+'</div><div class="l">'+fPx(sc.w)+' × '+fPx(sc.h)+' px</div><div class="s">'+(sc.fit?'✓ Fits natively':(sc.scale>=0.5?'Needs '+(1/sc.scale).toFixed(1)+'× downscale':'Only '+(sc.scale*100).toFixed(0)+'% coverage'))+'</div>';
+  grid.appendChild(div);
+});
+// Visual
+const mw=320;const sc=mw/SW;const ow=Math.round(SW*sc);const oh=Math.round(SH*sc);const fw=Math.round(fm.w*sc);const fh=Math.round(fm.h*sc);const iw=Math.max(2,Math.round(cw*sc));const ih=Math.max(2,Math.round(ch*sc));
+document.getElementById('senOut').style.width=ow+'px';document.getElementById('senOut').style.height=oh+'px';
+document.getElementById('senFmt').style.width=fw+'px';document.getElementById('senFmt').style.height=fh+'px';
+document.getElementById('senIn').style.width=iw+'px';document.getElementById('senIn').style.height=ih+'px';
+document.getElementById('senIn').style.background=sl.color;
+const rfll=document.getElementById('ratFill');rfll.style.width=Math.min(100,pctF)+'%';rfll.style.background=sl.color;rfll.textContent=pctF.toFixed(1)+'%';
+document.getElementById('ratLbl').textContent=pctF.toFixed(1)+'% of '+fm.lbl+' format · '+pctN.toFixed(1)+'% of native sensor';
+}
+popSel('refLens','25v');popSel('selLens','38v');popFmt();
+document.getElementById('refLens').addEventListener('change',calc);
+document.getElementById('selLens').addEventListener('change',calc);
+document.getElementById('fmtSel').addEventListener('change',calc);
+document.getElementById('dpiIn').addEventListener('input',calc);
+document.getElementById('refZS').addEventListener('input',function(){document.getElementById('refZV').textContent=parseFloat(this.value).toFixed(1)+'mm';calc()});
+document.getElementById('selZS').addEventListener('input',function(){document.getElementById('selZV').textContent=parseFloat(this.value).toFixed(1)+'mm';calc()});
+calc();
+})();
+</script>
+</body>
+</html>
