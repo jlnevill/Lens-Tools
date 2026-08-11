@@ -15,7 +15,4 @@ and lets you compare, overlay, and preview framing across the full lineup — in
 point in their range, six sensor crop ratios, and two synthetic visualisations plus a real-photo overlay
 mode.
 
-X2D II Lens Crop Calculator — a standalone HTML tool for Hasselblad X2D 100C photographers. 
-You have a lens mounted (e.g., 25V) but want the look of a different focal length (e.g., 38V). The tool calculates the exact sensor crop and tells you what print and screen size that crop delivers at your chosen DPI.
-
 All are offered "as-is", I hope you find them useful!
